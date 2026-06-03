@@ -1,82 +1,42 @@
-# Python Service Template
+# Chat Service
 
-Reference Flask service template with:
+Authoritative **PHI-complete store** for patient-facing chat. Channel adapters (app, web, SMS) share one ingestion and retrieval API so conversation history stays durable and unredacted before deidentification, AI analysis, or clinician review run elsewhere. **Care episodes** (clinical context and lifecycle) are owned by the Care Episode Service; this service stores `care_episode_uuid` on each message and will reject new interactions when no active episode exists as the full spec is implemented.
 
-- typed startup configuration via `pydantic-settings`
-- service-owned Cedar policies loaded from `policies/`
-- structured JSON logging via `logenvelope`
-- security headers via `flask-talisman`
-- per-route rate limiting via `flask-limiter`
-- `/health` plus versioned `/api/v1/*` routes
+Design background and acceptance criteria: [001-chat-service.md](https://github.com/Neosofia/cdp/blob/main/specs/001-chat-service.md).
 
-## Quickstart
+## How this service fits into the platform
 
-```bash
-uv sync
-uv run --dev -m pytest -q
-python -m gunicorn -c gunicorn_conf.py main:app
-```
+The Chat Service sits between patient channels and the clinical mesh. Adapters write inbound traffic here; clinicians and operators read stored messages within Cedar-enforced scope; when a **chat interaction** ends, identifier-only events (no message bodies) notify the deidentification pipeline to fetch the full log. Authentication issues platform JWTs; this service validates them and applies chat-specific Cedar policies before returning content. Real-time AI streaming, SMS delivery, and clean analytics stores remain in their owning services.
 
-## Source Override
+## What this service does / does not do
 
-This template currently resolves `authorization-in-the-middle` from the local monorepo checkout via `[tool.uv.sources]` in `pyproject.toml`.
+| In scope | Elsewhere |
+|----------|-----------|
+| Durable raw message storage (`messages` table, audit trail) | Care episode lifecycle → **Care Episode** |
+| Message list/create and last-activity batch lookup (current API) | Channel protocols (SMS gateway, push) → channel adapters |
+| Stub `POST /api/v1/messages/completions` for patient-app development | Production AI Response agent + streaming → **AI Agent** (spec 010) |
+| Cedar policies in `policies/` for message read/create | Deidentified / clean chat copy → **Deidentification** (spec 002) |
+| Interaction-end events and per-patient rate limits (spec FR-004, FR-009) | Token issuance → **Authentication** |
 
-When you copy this template into a standalone repository, replace that local source override with an immutable published wheel URL before enabling container builds or CI.
+## Operations and security
+
+- Run, test, migrate, and deploy: **[OPERATIONS.md](OPERATIONS.md)**
+- Threat model, authz boundaries, and logging rules: **[SECURITY.md](SECURITY.md)**
+- Feature scope and requirements: [001-chat-service.md](https://github.com/Neosofia/cdp/blob/main/specs/001-chat-service.md)
+
+Service listens on **8001** (CDP spec 001 → port 8000 + 1). In local compose, Postgres is on host port **5001** (`cdp_chat`).
 
 ## Endpoints
 
-- `GET /health`
-- `GET /api/v1/documents/{document_id}`
-- `GET /api/v1/documents/{document_id}/summary`
-- `DELETE /api/v1/documents/{document_id}`
+**Public (no JWT):** `GET /health`
 
-The machine-readable contract lives in `openapi.json`.
+**Message API** (`/api/v1/messages`; JWT + Cedar wiring in progress — see `policies/` and `src/authorization/entities.py`):
 
-## Database
+- `GET /api/v1/messages` — list messages for `patient_uuid` + `care_episode_uuid` (optional `limit`, default 200, max 500)
+- `POST /api/v1/messages` — persist inbound or outbound message (`patient_uuid`, `care_episode_uuid`, `sender_type`, `content`; optional `sender_uuid`)
+- `POST /api/v1/messages/last-activity` — batch last message timestamp per patient/episode pair
+- `POST /api/v1/messages/completions` — development stub for patient chat replies (replaced by AI Agent integration)
 
-Migration `000` bootstraps PostgreSQL for a backing store: creates the restricted `app` role (password from `APP_DATABASE_URL`), grants table privileges, and applies the shared [audit SQL templates](https://github.com/Neosofia/templates/tree/main/sql/audit). Use a two-URL pattern: superuser for migrations, `app` for runtime.
+`sender_type` is one of `patient`, `ai_agent`, or `clinician`. Message UUIDs are assigned server-side (`uuidv7()`).
 
-```bash
-uv run alembic upgrade head
-```
-
-## Environment Variables
-
-| Variable | Type | Default | Effect |
-|---|---|---|---|
-| `MIGRATION_DATABASE_URL` | string | *(required)* | Superuser URL for Alembic migrations. |
-| `APP_DATABASE_URL` | string | *(required)* | Restricted `app` role URL for the running service. |
-| `JWT_AUDIENCE` | string | `python-template` | Audience to expect on JWT.  |
-| `ENV` | string | `production` | Controls development/test behavior such as HTTPS enforcement. |
-| `LOG_LEVEL` | string | `info` | Minimum structured log severity. |
-| `PORT` | integer | `8900` | HTTP listener port (demo scaffold; outside 8000+spec range). |
-| `TRUSTED_PROXY_HOPS` | integer | `1` | Number of trusted reverse proxies for `ProxyFix`. |
-| `AUTHORIZATION_POLICIES_DIR` | path | `policies` | Directory containing Cedar policy files (`*.cedar`). |
-| `AUTHORIZATION_POLICY_CACHE_TTL` | integer | `60` | Seconds to cache the loaded policy bundle in process. |
-| `MAX_CONTENT_LENGTH` | integer | `16384` | Maximum accepted request body size in bytes. |
-| `RATELIMIT_STORAGE_URI` | string | `memory://` | Rate-limit backend. Use Redis in multi-replica deployments. |
-| `HEALTH_RATE_LIMIT` | string | `600 per minute` | Health endpoint rate limit. |
-| `DOCUMENT_READ_RATE_LIMIT` | string | `60 per minute` | Read-route rate limit. |
-| `DOCUMENT_DELETE_RATE_LIMIT` | string | `10 per minute` | Delete-route rate limit. |
-| `WEB_CONCURRENCY` | integer | `2` | Gunicorn worker count. |
-| `GUNICORN_THREADS` | integer | `2` | Gunicorn thread count per worker. |
-| `GUNICORN_TIMEOUT` | integer | `30` | Gunicorn worker timeout in seconds. |
-| `GUNICORN_KEEPALIVE` | integer | `5` | Gunicorn keepalive in seconds. |
-
-## Testing
-
-```bash
-uv run --dev -m pytest -q
-uv run --dev -m pytest tests/contract -q
-RUN_DOCKER_TESTS=1 uv run --dev -m pytest tests/integration -q
-```
-
-The default pytest invocation enforces an 80% coverage floor and excludes integration tests from the fast unit/contract path.
-
-## Container Build
-
-In this monorepo, build the reference container from the repository root so the local `authorization-in-the-middle` source override is available during `uv sync`:
-
-```bash
-docker build -f templates/python/service/Dockerfile -t python-template:test .
-```
+Contract: `openapi.json`.
