@@ -7,6 +7,8 @@ Cedar principal and catalog resources for ``@with_security`` on message routes.
 | POST /api/v1/messages | message:create | chat::MessageCatalog |
 | POST /api/v1/messages/last-activity | message:read | chat::MessageCatalog |
 | POST /api/v1/messages/completions | message:create | chat::MessageCatalog |
+| GET /api/v1/interactions | message:read | chat::MessageCatalog |
+| POST /api/v1/interactions | message:create | chat::MessageCatalog |
 """
 from __future__ import annotations
 

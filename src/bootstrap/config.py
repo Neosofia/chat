@@ -54,6 +54,16 @@ class Settings(BaseSettings):
     frontend_url: str = Field(default="http://localhost:5173")
     gunicorn_keepalive: int = Field(default=5, ge=1)
 
+    # Care-assistant inference provider (OpenAI-compatible chat completions API)
+    inference_completions_url: str = Field(default="")
+    inference_api_key: str | None = Field(default=None)
+    inference_model: str = Field(default="")
+    inference_temperature: float = Field(default=1.0, ge=0.0, le=2.0)
+    inference_max_completion_tokens: int = Field(default=1024, ge=1, le=65536)
+    inference_reasoning_effort: str = Field(default="medium")
+    inference_timeout_seconds: float = Field(default=60.0, gt=0)
+    completion_history_limit: int = Field(default=200, ge=1, le=500)
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

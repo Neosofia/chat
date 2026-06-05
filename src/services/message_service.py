@@ -7,7 +7,9 @@ from sqlalchemy import func
 
 from werkzeug.exceptions import BadRequest
 
+from src.models.chat_interaction import ChatInteraction
 from src.models.message import Message
+from src.services.interaction_service import require_interaction
 
 SYSTEM_ACTOR_UUID = uuid.UUID("00000000-0000-7000-8000-000000000000")
 SERVICE_ACTOR_TYPE = 2
@@ -16,8 +18,7 @@ SERVICE_ACTOR_TYPE = 2
 def _to_dict(item: Message) -> dict:
     return {
         "message_uuid": str(item.message_uuid),
-        "patient_uuid": str(item.patient_uuid),
-        "care_episode_uuid": str(item.care_episode_uuid) if item.care_episode_uuid else None,
+        "chat_interaction_uuid": str(item.chat_interaction_uuid),
         "sender_type": item.sender_type,
         "sender_uuid": str(item.sender_uuid) if item.sender_uuid else None,
         "content": item.content,
@@ -25,13 +26,18 @@ def _to_dict(item: Message) -> dict:
     }
 
 
-def list_messages(db, patient_uuid: str, care_episode_uuid: str | None = None, limit: int = 200) -> list[dict]:
-    patient_id = uuid.UUID(str(patient_uuid))
-    if not care_episode_uuid:
-        raise BadRequest("care_episode_uuid is required")
-    query = db.query(Message).filter(Message.patient_uuid == patient_id)
-    query = query.filter(Message.care_episode_uuid == uuid.UUID(str(care_episode_uuid)))
-    rows = query.order_by(Message.changed_at.asc(), Message.message_uuid.asc()).limit(limit).all()
+def list_messages(db, chat_interaction_uuid: str | None = None, limit: int = 200) -> list[dict]:
+    if not chat_interaction_uuid:
+        raise BadRequest("chat_interaction_uuid is required")
+    require_interaction(db, chat_interaction_uuid)
+    rows = (
+        db.query(Message)
+        .filter(Message.chat_interaction_uuid == uuid.UUID(str(chat_interaction_uuid)))
+        .order_by(Message.changed_at.desc(), Message.message_uuid.desc())
+        .limit(limit)
+        .all()
+    )
+    rows.reverse()
     return [_to_dict(row) for row in rows]
 
 
@@ -46,8 +52,9 @@ def list_last_message_times(db, items: list[dict]) -> list[dict]:
         episode_id = uuid.UUID(care_episode_uuid)
         last_at = (
             db.query(func.max(Message.changed_at))
-            .filter(Message.patient_uuid == patient_id)
-            .filter(Message.care_episode_uuid == episode_id)
+            .join(ChatInteraction, Message.chat_interaction_uuid == ChatInteraction.chat_interaction_uuid)
+            .filter(ChatInteraction.patient_uuid == patient_id)
+            .filter(ChatInteraction.care_episode_uuid == episode_id)
             .scalar()
         )
         results.append(
@@ -61,7 +68,7 @@ def list_last_message_times(db, items: list[dict]) -> list[dict]:
 
 
 def create_message(db, payload: dict) -> dict:
-    required = ("patient_uuid", "care_episode_uuid", "sender_type", "content")
+    required = ("chat_interaction_uuid", "sender_type", "content")
     missing = [field for field in required if not payload.get(field)]
     if missing:
         raise BadRequest(f"missing required fields: {missing}")
@@ -70,11 +77,17 @@ def create_message(db, payload: dict) -> dict:
     if payload.get("created_at"):
         raise BadRequest("created_at cannot be set via the API")
 
+    chat_interaction_uuid = str(payload["chat_interaction_uuid"])
+    interaction = require_interaction(db, chat_interaction_uuid)
+
+    sender_uuid = payload.get("sender_uuid")
+    if payload["sender_type"] == "patient" and not sender_uuid:
+        sender_uuid = str(interaction.patient_uuid)
+
     item = Message(
-        patient_uuid=uuid.UUID(str(payload["patient_uuid"])),
-        care_episode_uuid=uuid.UUID(str(payload["care_episode_uuid"])),
+        chat_interaction_uuid=uuid.UUID(chat_interaction_uuid),
         sender_type=payload["sender_type"],
-        sender_uuid=uuid.UUID(str(payload["sender_uuid"])) if payload.get("sender_uuid") else None,
+        sender_uuid=uuid.UUID(str(sender_uuid)) if sender_uuid else None,
         content=str(payload["content"]).strip(),
         changed_by_uuid=SYSTEM_ACTOR_UUID,
         changed_by_type=SERVICE_ACTOR_TYPE,

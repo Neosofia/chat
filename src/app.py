@@ -10,6 +10,7 @@ from src.bootstrap.config import settings
 from src.bootstrap.extensions import limiter, talisman
 from src.bootstrap.logging_config import log_event, setup_logging
 from src.routes import health
+from src.routes.interactions import init_interaction_routes
 from src.routes.messages import init_message_routes
 
 
@@ -52,6 +53,7 @@ def create_app(config: dict[str, Any] | None = None) -> Flask:
 
     app.register_blueprint(health.bp)
     init_message_routes(app, evaluator)
+    init_interaction_routes(app, evaluator)
 
     @app.errorhandler(HTTPException)
     def handle_http_exception(exc: HTTPException):

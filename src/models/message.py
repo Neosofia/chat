@@ -18,8 +18,7 @@ class Message(Base, AuditColumnsMixin):
         primary_key=True,
         server_default=text("uuidv7()"),
     )
-    patient_uuid: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True)
-    care_episode_uuid: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    chat_interaction_uuid: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     sender_type: Mapped[str] = mapped_column(String(32))
     sender_uuid: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     content: Mapped[str] = mapped_column(Text)
