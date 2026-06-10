@@ -35,11 +35,13 @@
    uv run --dev -m gunicorn -c src/gunicorn.py src.app:app
    ```
 
-5. Check health:
+5. Check health (default service port **8001** per CDP spec 001 → 8000 + 1; override with `PORT` in `.env`):
 
    ```bash
-   curl http://localhost:8900/health
+   curl http://localhost:8001/health
    ```
+
+   In the CDP `docker-compose.dev.yml` stack, this service listens on host port **8001** and Postgres on **5001** (`cdp_chat`).
 
 6. Generate a local JWT to test secure API endpoints:
 
@@ -62,7 +64,7 @@ docker build -f templates/python/service/Dockerfile --target runtime -t python-t
 To run the container locally, mount the port and explicitly set `ENV=development` to disable the forced HTTPS redirects from Talisman:
 
 ```bash
-docker run -d --rm -p 8900:8900 -e ENV=development --env-file .env --name python-template-dev python-template-dev
+docker run -d --rm -p 8001:8001 -e ENV=development --env-file .env --name chat-dev chat-dev
 ```
 
 Before using this outside this monorepo, replace the local `authorization-in-the-middle` source override in `pyproject.toml` with an immutable published artifact.

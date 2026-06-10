@@ -1,14 +1,15 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Python Service Template API",
-    "version": "0.1.0",
-    "description": "Reference API contract for the Python service template."
+    "title": "Chat Service API",
+    "version": "0.2.2",
+    "description": "Authoritative PHI-complete store for patient-facing chat: messages, chat interactions, and care-assistant completions."
   },
   "paths": {
     "/health": {
       "get": {
         "operationId": "getHealth",
+        "summary": "Service health",
         "responses": {
           "200": {
             "description": "Service health",
@@ -23,131 +24,17 @@
         }
       }
     },
-    "/api/v1/documents/{document_id}": {
+    "/meta/enums": {
       "get": {
-        "operationId": "getDocument",
-        "parameters": [
-          {
-            "name": "document_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "operationId": "getEnumRegistry",
+        "summary": "Integer enum labels for API clients",
         "responses": {
           "200": {
-            "description": "Document metadata",
+            "description": "Enum registry",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DocumentResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Authorization unavailable",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "operationId": "deleteDocument",
-        "parameters": [
-          {
-            "name": "document_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Document deleted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DeleteResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Authorization unavailable",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/EnumRegistryResponse"
                 }
               }
             }
@@ -155,75 +42,338 @@
         }
       }
     },
-    "/api/v1/documents/{document_id}/summary": {
+    "/api/v1/messages": {
       "get": {
-        "operationId": "getDocumentSummary",
+        "operationId": "listMessages",
+        "summary": "List messages for a chat interaction",
         "parameters": [
           {
-            "name": "document_id",
-            "in": "path",
+            "name": "chat_interaction_uuid",
+            "in": "query",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 200
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Document summary",
+            "description": "Messages in chronological order",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DocumentSummaryResponse"
+                  "$ref": "#/components/schemas/MessageListResponse"
                 }
               }
             }
           },
           "400": {
-            "description": "Invalid request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
           },
           "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
-            "description": "Not found",
+            "$ref": "#/components/responses/NotFound"
+          },
+          "503": {
+            "$ref": "#/components/responses/AuthorizationUnavailable"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createMessage",
+        "summary": "Persist an inbound or outbound message",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Message created",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/Message"
                 }
               }
             }
           },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
           "503": {
-            "description": "Authorization unavailable",
+            "$ref": "#/components/responses/AuthorizationUnavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/messages/last-activity": {
+      "post": {
+        "operationId": "batchLastMessageActivity",
+        "summary": "Batch lookup of last message timestamp per patient and care episode",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LastActivityRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Last activity per requested pair",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/LastActivityResponse"
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "503": {
+            "$ref": "#/components/responses/AuthorizationUnavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/messages/completions": {
+      "post": {
+        "operationId": "createCompletion",
+        "summary": "Care assistant turn or new-session greeting",
+        "description": "When `session_start` is true, primes an empty interaction with an AI greeting. Otherwise persists the patient message and returns an AI reply unless a clinician has already intervened in the thread.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompletionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Completion result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompletionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/interactions": {
+      "get": {
+        "operationId": "listInteractions",
+        "summary": "List chat interactions for a patient and care episode",
+        "parameters": [
+          {
+            "name": "patient_uuid",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "care_episode_uuid",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Interactions ordered by most recent activity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InteractionListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "503": {
+            "$ref": "#/components/responses/AuthorizationUnavailable"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createInteraction",
+        "summary": "Open a new chat interaction",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InteractionCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Interaction created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatInteraction"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "503": {
+            "$ref": "#/components/responses/AuthorizationUnavailable"
           }
         }
       }
     }
   },
   "components": {
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid request",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Unauthenticated": {
+        "description": "Missing or invalid Bearer token",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Forbidden",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "AuthorizationUnavailable": {
+        "description": "Authorization unavailable",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "ServiceUnavailable": {
+        "description": "Care assistant or authorization unavailable",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
     "schemas": {
       "HealthResponse": {
         "type": "object",
@@ -245,60 +395,12 @@
           }
         }
       },
-      "DocumentResponse": {
-        "type": "object",
-        "required": [
-          "document_id",
-          "title",
-          "clinic_id"
-        ],
-        "additionalProperties": false,
-        "properties": {
-          "document_id": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
-          },
-          "clinic_id": {
-            "type": "string"
-          }
-        }
-      },
-      "DocumentSummaryResponse": {
-        "type": "object",
-        "required": [
-          "document_id",
-          "summary"
-        ],
-        "additionalProperties": false,
-        "properties": {
-          "document_id": {
-            "type": "string"
-          },
-          "summary": {
-            "type": "string"
-          }
-        }
-      },
-      "DeleteResponse": {
-        "type": "object",
-        "required": [
-          "deleted"
-        ],
-        "additionalProperties": false,
-        "properties": {
-          "deleted": {
-            "type": "string"
-          }
-        }
-      },
       "ErrorResponse": {
         "type": "object",
         "required": [
           "error"
         ],
-        "additionalProperties": false,
+        "additionalProperties": true,
         "properties": {
           "error": {
             "type": "string",
@@ -310,13 +412,405 @@
               "payload_too_large",
               "authorization_unavailable",
               "internal_server_error",
-              "method_not_allowed"
+              "method_not_allowed",
+              "http_error"
             ]
           },
           "detail": {
             "type": "string"
           }
         }
+      },
+      "EnumRegistryResponse": {
+        "type": "object",
+        "required": [
+          "enums"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "enums": {
+            "type": "object",
+            "required": [
+              "ChatChannel"
+            ],
+            "properties": {
+              "ChatChannel": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "Maps integer storage values to API labels (1=web, 2=mobile_app, 3=sms)."
+              }
+            }
+          }
+        }
+      },
+      "Message": {
+        "type": "object",
+        "required": [
+          "message_uuid",
+          "chat_interaction_uuid",
+          "channel",
+          "channel_label",
+          "sender_type",
+          "content",
+          "created_at"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "message_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "chat_interaction_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "channel": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              3
+            ]
+          },
+          "channel_label": {
+            "type": "string",
+            "enum": [
+              "web",
+              "mobile_app",
+              "sms"
+            ]
+          },
+          "sender_type": {
+            "type": "string",
+            "enum": [
+              "patient",
+              "ai_agent",
+              "clinician"
+            ]
+          },
+          "sender_uuid": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "content": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MessageListResponse": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Message"
+            }
+          }
+        }
+      },
+      "MessageCreateRequest": {
+        "type": "object",
+        "required": [
+          "chat_interaction_uuid",
+          "sender_type",
+          "content"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "chat_interaction_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sender_type": {
+            "type": "string",
+            "enum": [
+              "patient",
+              "ai_agent",
+              "clinician"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "sender_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "channel": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "enum": [
+                  1,
+                  2,
+                  3
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "web",
+                  "mobile_app",
+                  "sms"
+                ]
+              }
+            ],
+            "description": "Defaults to web when omitted."
+          }
+        }
+      },
+      "LastActivityRequest": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LastActivityQueryItem"
+            }
+          }
+        }
+      },
+      "LastActivityQueryItem": {
+        "type": "object",
+        "required": [
+          "patient_uuid",
+          "care_episode_uuid"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "patient_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "care_episode_uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "LastActivityResponse": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LastActivityResult"
+            }
+          }
+        }
+      },
+      "LastActivityResult": {
+        "type": "object",
+        "required": [
+          "patient_uuid",
+          "care_episode_uuid",
+          "last_message_at"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "patient_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "care_episode_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "last_message_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "CompletionRequest": {
+        "type": "object",
+        "required": [
+          "chat_interaction_uuid"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "chat_interaction_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "session_start": {
+            "type": "boolean",
+            "description": "When true, greet the patient on an empty interaction."
+          },
+          "content": {
+            "type": "string",
+            "description": "Patient message text; required unless session_start is true."
+          },
+          "sender_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "channel": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "enum": [
+                  1,
+                  2,
+                  3
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "web",
+                  "mobile_app",
+                  "sms"
+                ]
+              }
+            ],
+            "description": "Defaults to web when omitted."
+          }
+        }
+      },
+      "CompletionResponse": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "message": {
+            "type": "string",
+            "nullable": true,
+            "description": "AI reply text; null when ai_disabled is true."
+          },
+          "patient_message": {
+            "$ref": "#/components/schemas/Message"
+          },
+          "assistant_message": {
+            "$ref": "#/components/schemas/Message"
+          },
+          "ai_disabled": {
+            "type": "boolean",
+            "description": "True when a clinician has already intervened in the thread."
+          }
+        }
+      },
+      "ChatInteraction": {
+        "type": "object",
+        "required": [
+          "chat_interaction_uuid",
+          "patient_uuid",
+          "care_episode_uuid",
+          "started_at",
+          "last_message_at",
+          "message_count",
+          "preview"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "chat_interaction_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "patient_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "care_episode_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_message_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "message_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "preview": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "InteractionListResponse": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatInteraction"
+            }
+          }
+        }
+      },
+      "InteractionCreateRequest": {
+        "type": "object",
+        "required": [
+          "patient_uuid",
+          "care_episode_uuid"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "patient_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "care_episode_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "context": {
+            "$ref": "#/components/schemas/InteractionContext"
+          }
+        }
+      },
+      "InteractionContext": {
+        "type": "object",
+        "additionalProperties": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "description": "Optional agent personalization context (max 8192 bytes serialized)."
       }
     }
   }

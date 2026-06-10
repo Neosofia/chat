@@ -9,9 +9,11 @@ from authorization_in_the_middle import CedarEvaluator, FilesystemPolicySetSourc
 from src.bootstrap.config import settings
 from src.bootstrap.extensions import limiter, talisman
 from src.bootstrap.logging_config import log_event, setup_logging
+from logenvelope.flask import register_logenvelope_extension
 from src.routes import health
 from src.routes.interactions import init_interaction_routes
 from src.routes.messages import init_message_routes
+from src.routes.meta import init_meta_routes
 
 
 def _http_error_name(status_code: int) -> str:
@@ -27,7 +29,9 @@ def create_app(config: dict[str, Any] | None = None) -> Flask:
     app.config.setdefault("MAX_CONTENT_LENGTH", settings.max_content_length)
     app.config.setdefault("JWT_PUBLIC_KEY", settings.jwt_public_key)
     app.config.setdefault("JWT_AUDIENCE", settings.jwt_audience)
+    app.config.setdefault("JWT_CLAIM_NAMESPACE", settings.jwt_claim_namespace)
     app.config.setdefault("SERVICE_NAME", settings.service_name)
+    register_logenvelope_extension(app)
     if hasattr(settings, "jwt_jwks_uri"):
         app.config.setdefault("JWT_JWKS_URI", settings.jwt_jwks_uri)
     app.config.setdefault("ENV", settings.env)
@@ -54,6 +58,7 @@ def create_app(config: dict[str, Any] | None = None) -> Flask:
     app.register_blueprint(health.bp)
     init_message_routes(app, evaluator)
     init_interaction_routes(app, evaluator)
+    init_meta_routes(app)
 
     @app.errorhandler(HTTPException)
     def handle_http_exception(exc: HTTPException):

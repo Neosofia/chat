@@ -39,9 +39,14 @@ class Settings(BaseSettings):
     jwt_public_key: str | None = Field(default=None)
     jwt_jwks_uri: str | None = Field(default=None)
     jwt_audience: str | list[str] = Field(default="chat")
+    jwt_claim_namespace: str = Field(
+        default="neosofia",
+        description="Prefix for custom JWT claims (must match Authentication JWT_CLAIM_NAMESPACE)",
+    )
     # Rate limit settings
     rate_limit_storage_uri: str = "memory://"
     health_rate_limit: str = "600 per minute"
+    meta_enums_rate_limit: str = "600 per minute"
     message_write_rate_limit: str = "300 per minute"
     message_read_rate_limit: str = "300 per minute"
 
@@ -70,6 +75,13 @@ class Settings(BaseSettings):
         env_ignore_empty=True,
         extra="ignore",
     )
+
+    @field_validator("jwt_claim_namespace", mode="before")
+    @classmethod
+    def normalize_jwt_claim_namespace(cls, value: object) -> str:
+        if value is None or not str(value).strip():
+            return "neosofia"
+        return str(value).strip()
 
     @field_validator("jwt_audience", mode="before")
     def normalize_jwt_audience(cls, value: str | list[str] | None) -> list[str] | None:

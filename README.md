@@ -1,42 +1,31 @@
 # Chat Service
 
-Authoritative **PHI-complete store** for patient-facing chat. Channel adapters (app, web, SMS) share one ingestion and retrieval API so conversation history stays durable and unredacted before deidentification, AI analysis, or clinician review run elsewhere. **Care episodes** (clinical context and lifecycle) are owned by the Care Episode Service; this service stores `care_episode_uuid` on each message and will reject new interactions when no active episode exists as the full spec is implemented.
+Authoritative PHI-complete store for patient-facing chat. Channel adapters for app, web, and SMS share one place to record and read conversation history while it still contains identifiable patient content, before deidentification, analysis, or clinician review happen elsewhere.
 
-Design background and acceptance criteria: [001-chat-service.md](https://github.com/Neosofia/cdp/blob/main/specs/001-chat-service.md).
+Patient and clinician apps call this service when someone sends a message, opens a thread, or needs the care assistant to draft a reply. SMS and other channel adapters call it on the same path so every channel sees one timeline. The clinician app reads stored transcripts during escalation and takeover. The care episode service owns episode lifecycle and clinical context; this service only holds the conversations linked to that context. When a conversation ends, the deidentification pipeline is told to fetch the full thread. Authentication establishes identity for callers; channel delivery, push, risk scoring beyond the inline assistant, and long-term clean analytics live in their own services.
 
-## How this service fits into the platform
+## Resources
 
-The Chat Service sits between patient channels and the clinical mesh. Adapters write inbound traffic here; clinicians and operators read stored messages within Cedar-enforced scope; when a **chat interaction** ends, identifier-only events (no message bodies) notify the deidentification pipeline to fetch the full log. Authentication issues platform JWTs; this service validates them and applies chat-specific Cedar policies before returning content. Real-time AI streaming, SMS delivery, and clean analytics stores remain in their owning services.
+### Operations
 
-## What this service does / does not do
+For testers, developers, and system administrators, [OPERATIONS.md](OPERATIONS.md) covers local setup, migrations, ports, and smoke checks. Per-release operator steps and verification are in [INSTALLATION_PLAN.md](INSTALLATION_PLAN.md).
 
-| In scope | Elsewhere |
-|----------|-----------|
-| Durable raw message storage (`messages` table, audit trail) | Care episode lifecycle → **Care Episode** |
-| Message list/create and last-activity batch lookup (current API) | Channel protocols (SMS gateway, push) → channel adapters |
-| Stub `POST /api/v1/messages/completions` for patient-app development | Production AI Response agent + streaming → **AI Agent** (spec 010) |
-| Cedar policies in `policies/` for message read/create | Deidentified / clean chat copy → **Deidentification** (spec 002) |
-| Interaction-end events and per-patient rate limits (spec FR-004, FR-009) | Token issuance → **Authentication** |
+### Changelog
 
-## Operations and security
+For operators, integrators, and product owners, [CHANGELOG.md](CHANGELOG.md) records user-visible changes per release ([Keep a Changelog](https://keepachangelog.com/)).
 
-- Run, test, migrate, and deploy: **[OPERATIONS.md](OPERATIONS.md)**
-- Threat model, authz boundaries, and logging rules: **[SECURITY.md](SECURITY.md)**
-- Feature scope and requirements: [001-chat-service.md](https://github.com/Neosofia/cdp/blob/main/specs/001-chat-service.md)
+### API Contract
 
-Service listens on **8001** (CDP spec 001 → port 8000 + 1). In local compose, Postgres is on host port **5001** (`cdp_chat`).
+For API consumers, integration testers, and frontend developers, [openapi.json](openapi.json) is the authoritative machine-readable contract for this service. It is maintained in-repo for CI and codegen; it is **not** served over HTTP in any environment.
 
-## Endpoints
+### Security Policy
 
-**Public (no JWT):** `GET /health`
+For security reviewers, on-call engineers, and contributors, [SECURITY.md](SECURITY.md) documents the threat model, authz boundaries, and logging rules for this service.
 
-**Message API** (`/api/v1/messages`; JWT + Cedar wiring in progress — see `policies/` and `src/authorization/entities.py`):
+### Feature Specification
 
-- `GET /api/v1/messages` — list messages for `patient_uuid` + `care_episode_uuid` (optional `limit`, default 200, max 500)
-- `POST /api/v1/messages` — persist inbound or outbound message (`patient_uuid`, `care_episode_uuid`, `sender_type`, `content`; optional `sender_uuid`)
-- `POST /api/v1/messages/last-activity` — batch last message timestamp per patient/episode pair
-- `POST /api/v1/messages/completions` — development stub for patient chat replies (replaced by AI Agent integration)
+For product owners, architects, and new contributors, the [feature spec](https://github.com/Neosofia/cdp/blob/main/specs/001-chat-service.md) describes goals, functional requirements, and acceptance criteria. It is the binding record of what the component must do.
 
-`sender_type` is one of `patient`, `ai_agent`, or `clinician`. Message UUIDs are assigned server-side (`uuidv7()`).
+### Governance and architecture
 
-Contract: `openapi.json`.
+For architects and senior engineers, [ADR-0003](https://github.com/Neosofia/cdp/blob/main/architecture/adrs/0003-store-categorical-columns-as-integer-enums.md) records integer enum storage for categorical columns such as `channel`; [ADR-0008](https://github.com/Neosofia/cdp/blob/main/architecture/adrs/0008-published-json-schema-contracts-for-api-testing.md) establishes the published OpenAPI contract approach used here.

@@ -19,6 +19,7 @@ def _patient_token(rsa_keypair) -> str:
         "iat": 1,
         "neosofia:actors": ["patient"],
         "neosofia:tenant_type": "platform",
+        "neosofia:tenant_uuid": "00000000-0000-7000-8000-000000000010",
     }
     return jwt.encode(claims, rsa_keypair["private"], algorithm="RS256")
 
@@ -48,6 +49,8 @@ def _fake_created_message(_db, payload: dict) -> dict:
     return {
         "message_uuid": "00000000-0000-7000-8000-000000000099",
         "chat_interaction_uuid": payload["chat_interaction_uuid"],
+        "channel": payload.get("channel", 1),
+        "channel_label": "web",
         "sender_type": payload["sender_type"],
         "sender_uuid": payload.get("sender_uuid"),
         "content": payload["content"],
@@ -87,8 +90,9 @@ def test_post_completion_response(mock_require, mock_create, mock_list, text, fr
     assert body["assistant_message"]["sender_type"] == "ai_agent"
 
 
+@patch("src.routes.messages.log_request_handled")
 @patch("src.routes.messages.start_chat_session")
-def test_post_session_start_completion(mock_start, client, rsa_keypair):
+def test_post_session_start_completion(mock_start, mock_log, client, rsa_keypair):
     mock_start.return_value = {
         "message": "Hi Alex — how are you feeling today?",
         "assistant_message": {
@@ -111,6 +115,9 @@ def test_post_session_start_completion(mock_start, client, rsa_keypair):
     assert "how are you feeling" in body["message"].lower()
     assert body["assistant_message"]["sender_type"] == "ai_agent"
     assert "patient_message" not in body
+    mock_log.assert_called_once()
+    assert mock_log.call_args.args[0] == "completion_session_start"
+    assert mock_log.call_args.args[1] == 200
 
 
 def test_post_completion_requires_thread_fields(client, rsa_keypair):

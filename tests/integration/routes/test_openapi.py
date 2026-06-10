@@ -11,9 +11,13 @@ def test_openapi_spec_contains_core_paths():
     spec = json.loads((root / "openapi.json").read_text())
 
     assert spec["openapi"] == "3.0.3"
+    assert spec["info"]["title"] == "Chat Service API"
     assert "/health" in spec["paths"]
-    assert "/api/v1/documents/{document_id}" in spec["paths"]
-    assert "/api/v1/documents/{document_id}/summary" in spec["paths"]
+    assert "/meta/enums" in spec["paths"]
+    assert "/api/v1/messages" in spec["paths"]
+    assert "/api/v1/messages/last-activity" in spec["paths"]
+    assert "/api/v1/messages/completions" in spec["paths"]
+    assert "/api/v1/interactions" in spec["paths"]
 
 
 def test_openapi_spec_defines_error_schema():

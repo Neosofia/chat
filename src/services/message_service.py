@@ -7,6 +7,7 @@ from sqlalchemy import func
 
 from werkzeug.exceptions import BadRequest
 
+from src.models.chat_channel import CHAT_CHANNEL_LABELS, parse_chat_channel
 from src.models.chat_interaction import ChatInteraction
 from src.models.message import Message
 from src.services.interaction_service import require_interaction
@@ -19,6 +20,8 @@ def _to_dict(item: Message) -> dict:
     return {
         "message_uuid": str(item.message_uuid),
         "chat_interaction_uuid": str(item.chat_interaction_uuid),
+        "channel": item.channel,
+        "channel_label": CHAT_CHANNEL_LABELS[item.channel],
         "sender_type": item.sender_type,
         "sender_uuid": str(item.sender_uuid) if item.sender_uuid else None,
         "content": item.content,
@@ -84,8 +87,11 @@ def create_message(db, payload: dict) -> dict:
     if payload["sender_type"] == "patient" and not sender_uuid:
         sender_uuid = str(interaction.patient_uuid)
 
+    channel = parse_chat_channel(payload.get("channel"))
+
     item = Message(
         chat_interaction_uuid=uuid.UUID(chat_interaction_uuid),
+        channel=int(channel),
         sender_type=payload["sender_type"],
         sender_uuid=uuid.UUID(str(sender_uuid)) if sender_uuid else None,
         content=str(payload["content"]).strip(),

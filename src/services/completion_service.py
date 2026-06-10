@@ -4,6 +4,7 @@ import httpx
 from werkzeug.exceptions import BadRequest, ServiceUnavailable
 
 from src.bootstrap.config import settings
+from src.models.chat_channel import parse_chat_channel
 from src.services.interaction_service import require_interaction
 from src.services.message_service import create_message, list_messages
 
@@ -172,6 +173,7 @@ def start_chat_session(db, payload: dict) -> dict:
         raise BadRequest("chat_interaction_uuid is required")
 
     interaction = require_interaction(db, chat_interaction_uuid)
+    channel = parse_chat_channel(payload.get("channel"))
     history = list_messages(db, chat_interaction_uuid, limit=1)
     if history:
         raise BadRequest("session_start is only allowed for empty chat interactions")
@@ -185,6 +187,7 @@ def start_chat_session(db, payload: dict) -> dict:
         db,
         {
             "chat_interaction_uuid": chat_interaction_uuid,
+            "channel": int(channel),
             "sender_type": "ai_agent",
             "content": reply,
         },
@@ -204,11 +207,13 @@ def complete_patient_turn(db, payload: dict) -> dict:
 
     interaction = require_interaction(db, chat_interaction_uuid)
     patient_uuid = str(interaction.patient_uuid)
+    channel = parse_chat_channel(payload.get("channel"))
 
     patient_message = create_message(
         db,
         {
             "chat_interaction_uuid": chat_interaction_uuid,
+            "channel": int(channel),
             "sender_type": "patient",
             "sender_uuid": payload.get("sender_uuid") or patient_uuid,
             "content": content,
@@ -236,6 +241,7 @@ def complete_patient_turn(db, payload: dict) -> dict:
         db,
         {
             "chat_interaction_uuid": chat_interaction_uuid,
+            "channel": int(channel),
             "sender_type": "ai_agent",
             "content": reply,
         },

@@ -19,6 +19,7 @@ def _patient_token(rsa_keypair) -> str:
         "iat": 1,
         "neosofia:actors": ["patient"],
         "neosofia:tenant_type": "platform",
+        "neosofia:tenant_uuid": "00000000-0000-7000-8000-000000000010",
     }
     return jwt.encode(claims, rsa_keypair["private"], algorithm="RS256")
 
@@ -67,8 +68,9 @@ def test_get_interactions_returns_items(mock_list, client, rsa_keypair):
     assert body["items"][0]["chat_interaction_uuid"] == INTERACTION
 
 
+@patch("src.routes.interactions.log_request_handled")
 @patch("src.routes.interactions.create_interaction")
-def test_post_interaction_creates_shell(mock_create, client, rsa_keypair):
+def test_post_interaction_creates_shell(mock_create, mock_log, client, rsa_keypair):
     mock_create.return_value = {
         "chat_interaction_uuid": INTERACTION,
         "patient_uuid": PATIENT,
@@ -86,6 +88,9 @@ def test_post_interaction_creates_shell(mock_create, client, rsa_keypair):
     )
     assert response.status_code == 201
     assert response.get_json()["chat_interaction_uuid"] == INTERACTION
+    mock_log.assert_called_once()
+    assert mock_log.call_args.args == ("interaction_create", 201)
+    assert mock_log.call_args.kwargs["care_episode_uuid"] == EPISODE
 
 
 def test_post_interaction_requires_fields(client, rsa_keypair):

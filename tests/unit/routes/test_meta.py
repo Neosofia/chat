@@ -1,0 +1,14 @@
+import pytest
+
+pytestmark = pytest.mark.unit
+
+
+def test_get_enums_is_public(client):
+    response = client.get("/meta/enums", base_url="https://localhost")
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["enums"]["ChatChannel"] == {
+        "1": "web",
+        "2": "mobile_app",
+        "3": "sms",
+    }
