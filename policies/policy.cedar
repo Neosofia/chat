@@ -1,4 +1,4 @@
-// FR-007 — patient self-scope; clinicians tenant-scoped via User Service lookup in entities.
+// FR-007 — patient self-scope; clinicians tenant-scoped via stored interaction context.
 
 permit (
     principal is chat::User,
@@ -30,4 +30,16 @@ permit (
     principal.actors.contains("clinician") &&
     principal.tenantId == resource.tenantId &&
     principal.tenantId != ""
+};
+
+// Care Episode — context-bearing interaction create on behalf of a patient
+permit (
+    principal is chat::Service,
+    action == Action::"interaction:create",
+    resource
+) when {
+    resource is chat::ChatCatalog &&
+    resource has userUuid &&
+    principal.tokenType == "service" &&
+    principal.serviceSlug == "care-episode"
 };

@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Chat Service API",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "description": "Authoritative store for user-scoped chat: messages, chat interactions, and AI assistant completions."
   },
   "paths": {
@@ -794,12 +794,16 @@
       },
       "InteractionCreateRequest": {
         "type": "object",
+        "required": [
+          "context"
+        ],
         "additionalProperties": false,
         "properties": {
           "context": {
             "$ref": "#/components/schemas/InteractionContext"
           }
-        }
+        },
+        "description": "Care Episode service token only. Patient and clinician callers cannot supply context."
       },
       "InteractionContext": {
         "type": "object",
@@ -819,7 +823,7 @@
             }
           ]
         },
-        "description": "Optional agent personalization context (max 8192 bytes serialized)."
+        "description": "Required authoritative episode context from Care Episode (max 8192 bytes serialized). Must include tenant_uuid for cross-user authorization."
       }
     }
   }

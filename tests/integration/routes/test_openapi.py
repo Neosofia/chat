@@ -18,7 +18,15 @@ def test_openapi_spec_contains_core_paths():
     assert "/api/v1/users/{user_uuid}/interactions/{chat_interaction_uuid}/messages" in spec["paths"]
     assert "/api/v1/users/{user_uuid}/interactions/{chat_interaction_uuid}/completions" in spec["paths"]
     assert "/api/v1/users/{user_uuid}/last-activity" in spec["paths"]
-    assert spec["info"]["version"] == "0.4.0"
+    assert spec["info"]["version"] == "0.5.0"
+
+
+def test_openapi_spec_requires_interaction_context_on_create():
+    root = Path(__file__).resolve().parents[3]
+    spec = json.loads((root / "openapi.json").read_text())
+
+    create_schema = spec["components"]["schemas"]["InteractionCreateRequest"]
+    assert "context" in create_schema["required"]
 
 
 def test_openapi_spec_defines_error_schema():

@@ -93,7 +93,6 @@ class Settings(BaseSettings):
     agent_instructions_file: Path | None = None
     _agent_priming_prompt: str = PrivateAttr()
     _agent_instructions: str = PrivateAttr()
-    user_service_base_url: str = ""
 
     message_sender_types: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["patient", "ai_agent", "clinician"]

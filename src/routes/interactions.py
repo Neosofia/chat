@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from authorization_in_the_middle.security import with_security
 from flask import Blueprint, Response, jsonify, request
+from werkzeug.exceptions import BadRequest
 
-from src.authorization.entities import CHAT_CATALOG_ID
+from src.authorization.entities import CHAT_CATALOG_ID, is_care_episode_service_token
 from src.bootstrap.config import settings
 from src.bootstrap.request_telemetry import log_request_handled
 from src.db.engine import SessionLocal
 from src.services.completion_service import complete_user_turn, start_chat_session
+from src.services.context_service import normalize_interaction_context
 from src.services.interaction_service import create_interaction, list_interactions, require_interaction_for_user
 from src.services.message_service import create_message, list_last_message_times, list_messages
 
@@ -26,6 +28,17 @@ def _with_chat_security(action: str, *, rate_limit: str):
 def init_interaction_routes(app, cedar_evaluator):
     app.extensions["cedar_evaluator"] = cedar_evaluator
     app.register_blueprint(bp)
+
+
+def _interaction_context_from_payload(payload: dict):
+    if "context" not in payload or payload.get("context") is None:
+        raise BadRequest("interaction context is required")
+    if not is_care_episode_service_token():
+        raise BadRequest("interaction context may only be supplied by care episode service")
+    context = normalize_interaction_context(payload["context"])
+    if context is None:
+        raise BadRequest("interaction context is required")
+    return context
 
 
 @bp.get("/<user_uuid>/last-activity")
@@ -54,7 +67,7 @@ def post_interaction(user_uuid: str) -> Response:
         item = create_interaction(
             db,
             user_uuid,
-            context=payload.get("context"),
+            context=_interaction_context_from_payload(payload),
         )
     log_request_handled("interaction_create", 201)
     return jsonify(item), 201

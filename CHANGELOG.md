@@ -4,6 +4,18 @@ What changed for patient and clinician chat experiences. Deploy steps and verifi
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.0] - 2026-06-11
+
+### Changed
+
+- **Interaction create** requires non-empty `context` supplied only by the Care Episode service token; patient and clinician callers receive **400** if they send `context`.
+- Clinician cross-user tenant authorization reads `tenant_uuid` from **stored interaction context** (CE-authored at create) instead of calling the User service.
+- Care assistant completions **fail closed**: unconfigured or failing inference returns **503**; no synthetic assistant messages are persisted. `GET /meta/enums` reports `assistant.available` from live configuration.
+
+### Removed
+
+- **`USER_SERVICE_BASE_URL`** — Chat no longer looks up patient organization from the User service.
+
 ## [0.4.0] - 2026-06-10
 
 ### Added

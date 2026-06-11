@@ -30,9 +30,9 @@ To report any security-related issue please email security@neosofia.tech — do 
 | Caller identity | Platform JWT from **Authentication**; human `sub` is the authenticated principal |
 | API scope | User-scoped nested routes (`/api/v1/users/{user_uuid}/…`); path `user_uuid` must match authorized scope |
 | Authorization | Fail-closed Cedar in `policies/policy.cedar`, evaluated in-process via `authorization-in-the-middle` |
-| Cross-user tenant match | For principals acting on another user's thread, `tenantId` on the Cedar resource is resolved via **User** (`USER_SERVICE_BASE_URL`) using the caller's passthrough `Authorization` header |
+| Cross-user tenant match | For principals acting on another user's thread, `tenantId` on the Cedar resource is read from `tenant_uuid` in the interaction `context` persisted at Care Episode–authorized create |
 | Public surface | Only `GET /health` is unauthenticated |
-| AI completions | Optional OpenAI-compatible inference (`INFERENCE_*`); message history and optional context are sent to the configured endpoint when completions run |
+| AI completions | OpenAI-compatible inference (`INFERENCE_*`); required for patient-facing assistant; completions fail closed (**503**, no persisted assistant message) when unavailable |
 
 ---
 
@@ -43,6 +43,10 @@ Policy bundle: `policies/policy.cedar`. Entity payloads are built in `src/author
 Deploy-time sender labels (`MESSAGE_SENDER_TYPES`, `INTERVENTION_SENDER_TYPES`, completion sender types) define which `sender_type` values are accepted and which pause AI completions. Clients read active labels from `GET /meta/enums`.
 
 Policy rules encode **self-scope** (principal uuid matches resource `userUuid`) and **same-tenant** access for authorized cross-user reads and writes. Unknown or unauthorized scope fails closed.
+
+**Interaction create:** `context` is required on `POST …/interactions` and may be supplied only by a `care-episode` service JWT. Patient and clinician callers cannot attach `context`; empty or missing `context` is rejected before persistence.
+
+**Tenant resolution for `chat::ChatCatalog`:** (1) Care Episode create — `tenant_uuid` from request `context`; (2) patient self — principal `tenantId` from JWT; (3) clinician cross-user — `tenant_uuid` from stored interaction `context` (database read during authorization). Chat does not call the User service for tenant lookup.
 
 ---
 
@@ -67,9 +71,9 @@ Deploy-time AI assistant prompts are **operator configuration** (see [NOTICE](NO
 |---------|-------------|
 | `JWT_AUDIENCE` | Must include `chat` |
 | `JWT_JWKS_URI` / `JWT_PUBLIC_KEY` | Authentication JWKS or PEM — same trust chain as other platform APIs |
-| `USER_SERVICE_BASE_URL` | Required for cross-user tenant resolution in Cedar |
+| PostgreSQL (`APP_DATABASE_URL`) | Required; interaction `context` supplies cross-user tenant resolution in Cedar |
 | `AUTHORIZATION_POLICIES_DIR` | Default `policies`; ship `policy.cedar` in the image |
-| `INFERENCE_*` | Optional; when unset, completion endpoints return 503 and `/health` reports degraded inference |
+| `INFERENCE_*` | Required for patient-facing assistant; when unset or unreachable, completion endpoints return **503** and `/health` reports `degraded` |
 | SDK wheels | Pin `authentication-in-the-middle` and `authorization-in-the-middle` to published release URLs in production |
 
 ---
@@ -78,10 +82,11 @@ Deploy-time AI assistant prompts are **operator configuration** (see [NOTICE](NO
 
 | Item | Status | Notes |
 |------|--------|-------|
-| Inference is a soft dependency | By design | `/health` returns 200 with `degraded` when inference is down; hard dependencies (database) are not yet probed on `/health` |
+| Inference unavailable at runtime | Fail closed | Completions return **503**; no stub or synthetic assistant content is persisted. `/health` returns 200 with `degraded` so the service stays operable for history reads |
+| No stub assistant path | By design | Misconfigured inference must not produce clinical-sounding placeholder replies ([chat#1](https://github.com/Neosofia/chat/issues/1)) |
 | Message content leaves the platform for completions | Accepted | Operators must use a HIPAA-eligible inference endpoint and BAA where required |
 | Rate limit storage in-memory | Accepted (baseline) | Set `RATE_LIMIT_STORAGE_URI` to Redis when running multiple replicas |
-| User Service lookup failure | Fail closed | Missing tenant resolution denies cross-user Cedar permits |
+| Interaction context missing `tenant_uuid` | Fail closed | Missing tenant resolution denies cross-user Cedar permits |
 
 ---
 

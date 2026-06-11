@@ -1,5 +1,7 @@
 import pytest
 
+from src.bootstrap.config import inference_configured
+
 pytestmark = pytest.mark.unit
 
 
@@ -22,4 +24,4 @@ def test_get_enums_is_public(client):
         "user_sender_type": "patient",
         "assistant_sender_type": "ai_agent",
     }
-    assert body["assistant"] == {"available": False}
+    assert body["assistant"] == {"available": inference_configured()}

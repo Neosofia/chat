@@ -8,7 +8,7 @@
    uv sync
    ```
 
-2. Configure environment (copy `.env.example` to `.env`). Required: database URLs, `JWT_AUDIENCE=chat`, and `JWT_JWKS_URI` or `JWT_PUBLIC_KEY`. Set `USER_SERVICE_BASE_URL` when testing cross-user threads.
+2. Configure environment (copy `.env.example` to `.env`). Required: database URLs, `JWT_AUDIENCE=chat`, and `JWT_JWKS_URI` or `JWT_PUBLIC_KEY`.
 
    Compose example (Postgres on host port **5001**):
 
@@ -17,7 +17,6 @@
    APP_DATABASE_URL=postgresql+psycopg://app:change-me@localhost:5001/cdp_chat
    JWT_JWKS_URI=http://localhost:8014/.well-known/jwks.json
    JWT_AUDIENCE=chat
-   USER_SERVICE_BASE_URL=http://localhost:8018
    ```
 
 3. Apply migrations (audit SQL from `templates/sql/audit` in the monorepo, or baked into the image):
@@ -45,7 +44,9 @@
    uv run scripts/gen_dev_jwt.py --type Patient --sub p1
    ```
 
-Optional settings (inference, prompts, sender taxonomy, rate limits): see commented keys in `.env.example`. Active enum labels: `GET /meta/enums`.
+**Care assistant (fail closed):** Set all three `INFERENCE_*` variables for local patient-chat testing. When inference is unset or the provider is unreachable, `POST …/completions` returns **503**, no `ai_agent` message is written, and `GET /meta/enums` reports `assistant.available: false`. The CDP patient UI disables send and shows an unavailable message — it does not synthesize clinical replies. Clinician-authored messages and clinician **intervention** (AI paused) are unchanged.
+
+Other optional settings (prompts, sender taxonomy, rate limits): see commented keys in `.env.example`. Active enum labels: `GET /meta/enums`.
 
 ## Docker build and run
 
@@ -68,8 +69,8 @@ Shared JWT, JWKS, CORS, healthcheck, and PaaS guidance:
 
 - `JWT_AUDIENCE` must include **`chat`**.
 - `JWT_JWKS_URI` → authentication service (for example `http://authentication:8014/.well-known/jwks.json`).
-- `USER_SERVICE_BASE_URL` required for cross-user authorization.
-- AI assistant: `INFERENCE_*` env vars; private prompts via `AGENT_*_FILE` (see [NOTICE](NOTICE)).
+- Interaction create accepts `context` only from **care-episode** service tokens; patient channels open interactions via the Care Episode proxy.
+- **Care assistant:** `INFERENCE_COMPLETIONS_URL`, `INFERENCE_API_KEY`, and `INFERENCE_MODEL` are **required** for patient-facing deployments. Completions fail closed (**503**) when inference is unavailable; private prompts via `AGENT_*_FILE` (see [NOTICE](NOTICE)).
 
 ## Test matrix
 
