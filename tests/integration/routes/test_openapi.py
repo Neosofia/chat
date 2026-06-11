@@ -14,10 +14,11 @@ def test_openapi_spec_contains_core_paths():
     assert spec["info"]["title"] == "Chat Service API"
     assert "/health" in spec["paths"]
     assert "/meta/enums" in spec["paths"]
-    assert "/api/v1/messages" in spec["paths"]
-    assert "/api/v1/messages/last-activity" in spec["paths"]
-    assert "/api/v1/messages/completions" in spec["paths"]
-    assert "/api/v1/interactions" in spec["paths"]
+    assert "/api/v1/users/{user_uuid}/interactions" in spec["paths"]
+    assert "/api/v1/users/{user_uuid}/interactions/{chat_interaction_uuid}/messages" in spec["paths"]
+    assert "/api/v1/users/{user_uuid}/interactions/{chat_interaction_uuid}/completions" in spec["paths"]
+    assert "/api/v1/users/{user_uuid}/last-activity" in spec["paths"]
+    assert spec["info"]["version"] == "0.4.0"
 
 
 def test_openapi_spec_defines_error_schema():

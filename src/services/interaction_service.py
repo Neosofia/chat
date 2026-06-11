@@ -7,6 +7,7 @@ from sqlalchemy import func
 
 from werkzeug.exceptions import BadRequest, NotFound
 
+from src.bootstrap.config import settings
 from src.models.chat_interaction import ChatInteraction
 from src.models.message import Message
 from src.services.context_service import normalize_interaction_context
@@ -25,15 +26,15 @@ def _preview_text(content: str) -> str:
 
 
 def _interaction_preview(db, interaction_uuid: uuid.UUID) -> str | None:
-    patient_message = (
+    user_turn_message = (
         db.query(Message.content)
         .filter(Message.chat_interaction_uuid == interaction_uuid)
-        .filter(Message.sender_type == "patient")
+        .filter(Message.sender_type == settings.completion_user_sender_type)
         .order_by(Message.changed_at.asc(), Message.message_uuid.asc())
         .first()
     )
-    if patient_message:
-        return _preview_text(patient_message[0])
+    if user_turn_message:
+        return _preview_text(user_turn_message[0])
 
     any_message = (
         db.query(Message.content)
@@ -56,8 +57,7 @@ def _to_dict(
     started_at = interaction.changed_at.astimezone(timezone.utc).isoformat()
     return {
         "chat_interaction_uuid": str(interaction.chat_interaction_uuid),
-        "patient_uuid": str(interaction.patient_uuid),
-        "care_episode_uuid": str(interaction.care_episode_uuid),
+        "user_uuid": str(interaction.user_uuid),
         "started_at": started_at,
         "last_message_at": last_message_at.astimezone(timezone.utc).isoformat() if last_message_at else None,
         "message_count": message_count,
@@ -67,17 +67,15 @@ def _to_dict(
 
 def create_interaction(
     db,
-    patient_uuid: str,
-    care_episode_uuid: str,
+    user_uuid: str,
     *,
     context=None,
 ) -> dict:
-    if not patient_uuid or not care_episode_uuid:
-        raise BadRequest("patient_uuid and care_episode_uuid are required")
+    if not user_uuid:
+        raise BadRequest("user_uuid is required")
 
     interaction = ChatInteraction(
-        patient_uuid=uuid.UUID(str(patient_uuid)),
-        care_episode_uuid=uuid.UUID(str(care_episode_uuid)),
+        user_uuid=uuid.UUID(str(user_uuid)),
         context=normalize_interaction_context(context),
         changed_by_uuid=SYSTEM_ACTOR_UUID,
         changed_by_type=SERVICE_ACTOR_TYPE,
@@ -88,12 +86,11 @@ def create_interaction(
     return _to_dict(interaction, message_count=0, last_message_at=None, preview=None)
 
 
-def list_interactions(db, patient_uuid: str, care_episode_uuid: str) -> list[dict]:
-    if not patient_uuid or not care_episode_uuid:
-        raise BadRequest("patient_uuid and care_episode_uuid are required")
+def list_interactions(db, user_uuid: str) -> list[dict]:
+    if not user_uuid:
+        raise BadRequest("user_uuid is required")
 
-    patient_id = uuid.UUID(str(patient_uuid))
-    episode_id = uuid.UUID(str(care_episode_uuid))
+    user_id = uuid.UUID(str(user_uuid))
 
     rows = (
         db.query(
@@ -102,8 +99,7 @@ def list_interactions(db, patient_uuid: str, care_episode_uuid: str) -> list[dic
             func.max(Message.changed_at),
         )
         .outerjoin(Message, Message.chat_interaction_uuid == ChatInteraction.chat_interaction_uuid)
-        .filter(ChatInteraction.patient_uuid == patient_id)
-        .filter(ChatInteraction.care_episode_uuid == episode_id)
+        .filter(ChatInteraction.user_uuid == user_id)
         .group_by(ChatInteraction.chat_interaction_uuid)
         .order_by(func.coalesce(func.max(Message.changed_at), ChatInteraction.changed_at).desc())
         .all()
@@ -123,13 +119,6 @@ def list_interactions(db, patient_uuid: str, care_episode_uuid: str) -> list[dic
     return items
 
 
-def get_latest_interaction_uuid(db, patient_uuid: str, care_episode_uuid: str) -> str | None:
-    interactions = list_interactions(db, patient_uuid, care_episode_uuid)
-    if not interactions:
-        return None
-    return interactions[0]["chat_interaction_uuid"]
-
-
 def require_interaction(db, chat_interaction_uuid: str) -> ChatInteraction:
     if not chat_interaction_uuid:
         raise BadRequest("chat_interaction_uuid is required")
@@ -141,5 +130,12 @@ def require_interaction(db, chat_interaction_uuid: str) -> ChatInteraction:
         .first()
     )
     if not interaction:
+        raise NotFound("chat interaction not found")
+    return interaction
+
+
+def require_interaction_for_user(db, user_uuid: str, chat_interaction_uuid: str) -> ChatInteraction:
+    interaction = require_interaction(db, chat_interaction_uuid)
+    if str(interaction.user_uuid) != str(user_uuid):
         raise NotFound("chat interaction not found")
     return interaction

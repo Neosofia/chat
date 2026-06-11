@@ -1,36 +1,40 @@
-# Installation Plan — chat v0.3.0
+# Product Installation Plan
 
-Per-version deploy and verification steps for operators. For what changed in each release, see [CHANGELOG.md](CHANGELOG.md).
+Per-version deploy steps for operators. User-visible changes: [CHANGELOG.md](CHANGELOG.md).
 
-## Deploy steps
+## chat v0.4.0
 
-1. Pull image `ghcr.io/neosofia/chat:v0.3.0` (tag `chat/v0.3.0`).
-2. Run migrations before starting the new runtime container:
+**Image:** `ghcr.io/neosofia/chat:v0.4.0` (tag `chat/v0.4.0`)
 
-   ```bash
-   uv run alembic upgrade head
-   ```
+**Mandatory (same change window):**
 
-   Applies revisions through `005` (message channel column).
+- Redeploy clients on user-scoped API paths (`/api/v1/users/{user_uuid}/…`). Flat `/api/v1/interactions` routes and completion fields `ai_disabled` / `patient_message` are removed.
 
-3. Deploy the chat service with existing `APP_DATABASE_URL`, JWT, and Cedar policy bundle unchanged unless your environment already customizes them.
-4. Optional inference env (stub replies used when omitted):
+**Deploy:**
 
-   ```dotenv
-   INFERENCE_COMPLETIONS_URL=
-   INFERENCE_API_KEY=
-   INFERENCE_MODEL=
-   ```
+1. `alembic upgrade head` before starting the new container (revision **007**).
+2. Set **`USER_SERVICE_BASE_URL`** (cross-user thread authorization).
+3. Set **`INFERENCE_COMPLETIONS_URL`**, **`INFERENCE_API_KEY`**, **`INFERENCE_MODEL`** if AI assistant replies are required (otherwise `/health` reports `degraded`).
+4. Pull image and redeploy; keep existing DB, JWT, and Cedar settings unless your environment customizes them.
 
-## Post-deploy verification
+**Verify:**
 
-1. `GET /health` returns `"status": "ok"` and `"version": "0.3.0"`.
-2. `GET /api/v1/interactions?patient_uuid=<uuid>&care_episode_uuid=<uuid>` returns `200` with `items`.
-3. `POST /api/v1/interactions` creates a thread; `POST /api/v1/messages/completions` with `session_start: true` primes an empty thread.
-4. After a clinician message exists in a thread, patient `POST /api/v1/messages/completions` returns `ai_disabled: true` and no `assistant_message`.
+- `GET /health` → `"version": "0.4.0"`.
+- `alembic current` → head **007**.
+- Authorized JWT: `GET /api/v1/users/{user_uuid}/interactions` → **200**.
 
-## Evidence
+---
 
-- Migration `alembic current` shows head `005`.
-- Health version matches `0.3.0`.
-- Smoke completion flow above succeeds against staging JWT.
+## chat v0.3.0
+
+**Image:** `ghcr.io/neosofia/chat:v0.3.0` (tag `chat/v0.3.0`)
+
+**Deploy:**
+
+1. `alembic upgrade head` (revision **005**).
+2. Pull image and redeploy.
+
+**Verify:**
+
+- `GET /health` → `"version": "0.3.0"`.
+- `GET /meta/enums` → **200**.

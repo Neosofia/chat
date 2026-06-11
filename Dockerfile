@@ -1,7 +1,6 @@
-# Reference multi-stage Dockerfile for the Python service template.
-# Build this from the service directory:
+# Build from the chat repository root:
 #   docker build --target test .
-#   docker build --target runtime -t python-template:test .
+#   docker build --target runtime -t chat:local .
 
 # cedarpy 4.8.1 needs the glibc manylinux wheel for attribute-based policy evaluation.
 ARG PYTHON_IMAGE=python:3.14-slim@sha256:c845af9399020c7e562969a13689e929074a10fd057acd1b1fad06a2fb068e97
@@ -65,6 +64,7 @@ COPY pyproject.toml ./pyproject.toml
 COPY alembic.ini ./alembic.ini
 COPY src ./src
 COPY policies ./policies
+COPY prompts ./prompts
 COPY openapi.json ./openapi.json
 COPY .env.example .env
 

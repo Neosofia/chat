@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Chat Service API",
-    "version": "0.2.2",
-    "description": "Authoritative PHI-complete store for patient-facing chat: messages, chat interactions, and care-assistant completions."
+    "version": "0.4.0",
+    "description": "Authoritative store for user-scoped chat: messages, chat interactions, and AI assistant completions."
   },
   "paths": {
     "/health": {
@@ -42,14 +42,160 @@
         }
       }
     },
-    "/api/v1/messages": {
+    "/api/v1/users/{user_uuid}/last-activity": {
+      "get": {
+        "operationId": "getLastMessageActivity",
+        "summary": "Last message timestamp for a user across all interactions",
+        "parameters": [
+          {
+            "name": "user_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Last message activity for the user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LastActivityResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "503": {
+            "$ref": "#/components/responses/AuthorizationUnavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/users/{user_uuid}/interactions": {
+      "get": {
+        "operationId": "listInteractions",
+        "summary": "List chat interactions for a user",
+        "parameters": [
+          {
+            "name": "user_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Interactions ordered by most recent activity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InteractionListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "503": {
+            "$ref": "#/components/responses/AuthorizationUnavailable"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createInteraction",
+        "summary": "Open a new chat interaction",
+        "parameters": [
+          {
+            "name": "user_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InteractionCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Interaction created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatInteraction"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "503": {
+            "$ref": "#/components/responses/AuthorizationUnavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/users/{user_uuid}/interactions/{chat_interaction_uuid}/messages": {
       "get": {
         "operationId": "listMessages",
         "summary": "List messages for a chat interaction",
         "parameters": [
           {
+            "name": "user_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
             "name": "chat_interaction_uuid",
-            "in": "query",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
@@ -99,6 +245,26 @@
       "post": {
         "operationId": "createMessage",
         "summary": "Persist an inbound or outbound message",
+        "parameters": [
+          {
+            "name": "user_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "chat_interaction_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -138,51 +304,31 @@
         }
       }
     },
-    "/api/v1/messages/last-activity": {
-      "post": {
-        "operationId": "batchLastMessageActivity",
-        "summary": "Batch lookup of last message timestamp per patient and care episode",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LastActivityRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Last activity per requested pair",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LastActivityResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthenticated"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "503": {
-            "$ref": "#/components/responses/AuthorizationUnavailable"
-          }
-        }
-      }
-    },
-    "/api/v1/messages/completions": {
+    "/api/v1/users/{user_uuid}/interactions/{chat_interaction_uuid}/completions": {
       "post": {
         "operationId": "createCompletion",
-        "summary": "Care assistant turn or new-session greeting",
-        "description": "When `session_start` is true, primes an empty interaction with an AI greeting. Otherwise persists the patient message and returns an AI reply unless a clinician has already intervened in the thread.",
+        "summary": "AI assistant turn or new-session greeting",
+        "description": "When `session_start` is true, primes an empty interaction with an AI greeting. Otherwise persists the user message and returns an AI reply unless an intervention has already occurred in the thread.",
+        "parameters": [
+          {
+            "name": "user_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "chat_interaction_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -218,94 +364,6 @@
           },
           "503": {
             "$ref": "#/components/responses/ServiceUnavailable"
-          }
-        }
-      }
-    },
-    "/api/v1/interactions": {
-      "get": {
-        "operationId": "listInteractions",
-        "summary": "List chat interactions for a patient and care episode",
-        "parameters": [
-          {
-            "name": "patient_uuid",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "care_episode_uuid",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Interactions ordered by most recent activity",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InteractionListResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthenticated"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "503": {
-            "$ref": "#/components/responses/AuthorizationUnavailable"
-          }
-        }
-      },
-      "post": {
-        "operationId": "createInteraction",
-        "summary": "Open a new chat interaction",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/InteractionCreateRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Interaction created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChatInteraction"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthenticated"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "503": {
-            "$ref": "#/components/responses/AuthorizationUnavailable"
           }
         }
       }
@@ -364,7 +422,7 @@
         }
       },
       "ServiceUnavailable": {
-        "description": "Care assistant or authorization unavailable",
+        "description": "AI assistant inference unavailable",
         "content": {
           "application/json": {
             "schema": {
@@ -386,12 +444,17 @@
           "status": {
             "type": "string",
             "enum": [
-              "ok"
+              "ok",
+              "degraded"
             ]
           },
           "version": {
             "type": "string",
             "description": "Service semver from pyproject at install/build time."
+          },
+          "detail": {
+            "type": "string",
+            "description": "Present when status is degraded (for example, inference unavailable)."
           }
         }
       },
@@ -424,14 +487,17 @@
       "EnumRegistryResponse": {
         "type": "object",
         "required": [
-          "enums"
+          "enums",
+          "completion"
         ],
         "additionalProperties": false,
         "properties": {
           "enums": {
             "type": "object",
             "required": [
-              "ChatChannel"
+              "ChatChannel",
+              "MessageSenderType",
+              "InterventionSenderType"
             ],
             "properties": {
               "ChatChannel": {
@@ -440,6 +506,38 @@
                   "type": "string"
                 },
                 "description": "Maps integer storage values to API labels (1=web, 2=mobile_app, 3=sms)."
+              },
+              "MessageSenderType": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "Allowed message sender_type values (from MESSAGE_SENDER_TYPES)."
+              },
+              "InterventionSenderType": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "Sender types that pause AI completions (from INTERVENTION_SENDER_TYPES)."
+              }
+            }
+          },
+          "completion": {
+            "type": "object",
+            "required": [
+              "user_sender_type",
+              "assistant_sender_type"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "user_sender_type": {
+                "type": "string",
+                "description": "sender_type used when POST …/completions persists the user turn (COMPLETION_USER_SENDER_TYPE)."
+              },
+              "assistant_sender_type": {
+                "type": "string",
+                "description": "sender_type used for AI replies (COMPLETION_ASSISTANT_SENDER_TYPE)."
               }
             }
           }
@@ -484,11 +582,7 @@
           },
           "sender_type": {
             "type": "string",
-            "enum": [
-              "patient",
-              "ai_agent",
-              "clinician"
-            ]
+            "description": "One of the labels in GET /meta/enums → MessageSenderType (runtime-configurable)."
           },
           "sender_uuid": {
             "type": "string",
@@ -522,23 +616,14 @@
       "MessageCreateRequest": {
         "type": "object",
         "required": [
-          "chat_interaction_uuid",
           "sender_type",
           "content"
         ],
         "additionalProperties": false,
         "properties": {
-          "chat_interaction_uuid": {
-            "type": "string",
-            "format": "uuid"
-          },
           "sender_type": {
             "type": "string",
-            "enum": [
-              "patient",
-              "ai_agent",
-              "clinician"
-            ]
+            "description": "One of the labels in GET /meta/enums → MessageSenderType (runtime-configurable)."
           },
           "content": {
             "type": "string"
@@ -570,68 +655,15 @@
           }
         }
       },
-      "LastActivityRequest": {
-        "type": "object",
-        "required": [
-          "items"
-        ],
-        "additionalProperties": false,
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/LastActivityQueryItem"
-            }
-          }
-        }
-      },
-      "LastActivityQueryItem": {
-        "type": "object",
-        "required": [
-          "patient_uuid",
-          "care_episode_uuid"
-        ],
-        "additionalProperties": false,
-        "properties": {
-          "patient_uuid": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "care_episode_uuid": {
-            "type": "string",
-            "format": "uuid"
-          }
-        }
-      },
-      "LastActivityResponse": {
-        "type": "object",
-        "required": [
-          "items"
-        ],
-        "additionalProperties": false,
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/LastActivityResult"
-            }
-          }
-        }
-      },
       "LastActivityResult": {
         "type": "object",
         "required": [
-          "patient_uuid",
-          "care_episode_uuid",
+          "user_uuid",
           "last_message_at"
         ],
         "additionalProperties": false,
         "properties": {
-          "patient_uuid": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "care_episode_uuid": {
+          "user_uuid": {
             "type": "string",
             "format": "uuid"
           },
@@ -644,18 +676,12 @@
       },
       "CompletionRequest": {
         "type": "object",
-        "required": [
-          "chat_interaction_uuid"
-        ],
+        "required": [],
         "additionalProperties": false,
         "properties": {
-          "chat_interaction_uuid": {
-            "type": "string",
-            "format": "uuid"
-          },
           "session_start": {
             "type": "boolean",
-            "description": "When true, greet the patient on an empty interaction."
+            "description": "When true, prime an empty interaction with an AI assistant greeting."
           },
           "content": {
             "type": "string",
@@ -698,17 +724,17 @@
           "message": {
             "type": "string",
             "nullable": true,
-            "description": "AI reply text; null when ai_disabled is true."
+            "description": "AI reply text; null when intervention is true."
           },
-          "patient_message": {
+          "user_message": {
             "$ref": "#/components/schemas/Message"
           },
           "assistant_message": {
             "$ref": "#/components/schemas/Message"
           },
-          "ai_disabled": {
+          "intervention": {
             "type": "boolean",
-            "description": "True when a clinician has already intervened in the thread."
+            "description": "True when a policy-authorized human sender has already taken over the thread."
           }
         }
       },
@@ -716,8 +742,7 @@
         "type": "object",
         "required": [
           "chat_interaction_uuid",
-          "patient_uuid",
-          "care_episode_uuid",
+          "user_uuid",
           "started_at",
           "last_message_at",
           "message_count",
@@ -729,11 +754,7 @@
             "type": "string",
             "format": "uuid"
           },
-          "patient_uuid": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "care_episode_uuid": {
+          "user_uuid": {
             "type": "string",
             "format": "uuid"
           },
@@ -773,20 +794,8 @@
       },
       "InteractionCreateRequest": {
         "type": "object",
-        "required": [
-          "patient_uuid",
-          "care_episode_uuid"
-        ],
         "additionalProperties": false,
         "properties": {
-          "patient_uuid": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "care_episode_uuid": {
-            "type": "string",
-            "format": "uuid"
-          },
           "context": {
             "$ref": "#/components/schemas/InteractionContext"
           }

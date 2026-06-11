@@ -12,3 +12,14 @@ def test_get_enums_is_public(client):
         "2": "mobile_app",
         "3": "sms",
     }
+    assert body["enums"]["MessageSenderType"] == {
+        "ai_agent": "ai_agent",
+        "clinician": "clinician",
+        "patient": "patient",
+    }
+    assert body["enums"]["InterventionSenderType"] == {"clinician": "clinician"}
+    assert body["completion"] == {
+        "user_sender_type": "patient",
+        "assistant_sender_type": "ai_agent",
+    }
+    assert body["assistant"] == {"available": False}

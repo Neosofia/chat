@@ -1,0 +1,24 @@
+Neosofia Chat Service
+Copyright 2026 Neosofia
+
+This project is licensed under the GNU Affero General Public License v3.0.
+See LICENSE for the full license text.
+
+
+Additional terms and clarifications
+
+AI assistant prompt text
+------------------------
+
+Prompt text loaded at deploy time — via `AGENT_PRIMING_PROMPT_FILE`,
+`AGENT_INSTRUCTIONS_FILE`, or equivalent file-based configuration — is
+**deployment configuration**, not part of the Program source code under AGPL.
+
+Operators may bring their own prompts and keep them private. Custom prompt text is not
+considered a modification of this Program merely because it is mounted or referenced at
+runtime. Operators are not required to publish custom prompts when they have not
+otherwise modified and conveyed Corresponding Source for this Program.
+
+Reference prompts shipped in `prompts/` in this repository are defaults for convenience
+only. Replacing them at deploy time does not, by itself, trigger a source-distribution
+obligation for those replacements.

@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 from importlib.metadata import version
 
@@ -31,15 +33,39 @@ def test_health_allows_plain_http_in_production(rsa_keypair):
         ).test_client().get("/health")
         assert response.status_code == 200
         assert response.headers.get("Location") is None
-        assert response.get_json() == {"status": "ok", "version": version("chat")}
+        body = response.get_json()
+        assert body["version"] == version("chat")
+        assert body["status"] in {"ok", "degraded"}
     finally:
         app_module.settings = original_app_settings
         config_module.settings = original_config_settings
 
 
 def test_health_is_rate_limited(client):
-    # Confirm the endpoint consistently returns 200 across multiple calls.
-    # /health is intentionally not rate limited to avoid probe failures.
+    # Decorator is wired; Flask-Limiter enforces settings.health_rate_limit in production.
     for _ in range(3):
         response = client.get("/health")
         assert response.status_code == 200
+
+
+@patch("src.routes.health.check_inference_health", return_value=("ok", None))
+def test_health_returns_ok_when_inference_is_healthy(mock_check, client):
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.get_json() == {"status": "ok", "version": version("chat")}
+    mock_check.assert_called_once()
+
+
+@patch(
+    "src.routes.health.check_inference_health",
+    return_value=("degraded", "AI assistant inference is not configured"),
+)
+def test_health_returns_degraded_when_inference_is_unavailable(mock_check, client):
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "status": "degraded",
+        "version": version("chat"),
+        "detail": "AI assistant inference is not configured",
+    }
+    mock_check.assert_called_once()

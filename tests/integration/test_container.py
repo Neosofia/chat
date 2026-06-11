@@ -60,7 +60,7 @@ def app_container():
         container.with_kwargs(extra_hosts={"host.docker.internal": "host-gateway"})
         container.with_env("ENV", "test")
         container.with_env("PORT", "8001")
-        container.with_env("JWT_JWKS_URI", "http://identity:8014/.well-known/jwks.json")
+        container.with_env("JWT_JWKS_URI", "http://authentication:8014/.well-known/jwks.json")
         container.with_env("APP_DATABASE_URL", app_url_container)
         container.with_env("MIGRATION_DATABASE_URL", migration_url_container)
         container.with_exposed_ports(8001)
@@ -117,7 +117,8 @@ def test_container_health(app_container):
             res = requests.get(f"{app_container['base_url']}/health", timeout=1)
             if res.status_code == 200:
                 body = res.json()
-                assert body["status"] == "ok"
+                assert body["status"] == "degraded"
+                assert "inference" in body.get("detail", "").lower()
                 assert body.get("version")
                 return
         except requests.exceptions.RequestException:

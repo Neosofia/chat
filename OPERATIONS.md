@@ -1,6 +1,6 @@
 # Operations
 
-## Local Development
+## Local development
 
 1. Sync dependencies:
 
@@ -8,94 +8,71 @@
    uv sync
    ```
 
-2. Configure database URLs in `.env` (copy from `.env.example`). Use different users for migration and runtime:
+2. Configure environment (copy `.env.example` to `.env`). Required: database URLs, `JWT_AUDIENCE=chat`, and `JWT_JWKS_URI` or `JWT_PUBLIC_KEY`. Set `USER_SERVICE_BASE_URL` when testing cross-user threads.
+
+   Compose example (Postgres on host port **5001**):
 
    ```dotenv
-   MIGRATION_DATABASE_URL=postgresql+psycopg://template:<superuser-password>@localhost:5432/python_template
-   APP_DATABASE_URL=postgresql+psycopg://app:<app-password>@localhost:5432/python_template
+   MIGRATION_DATABASE_URL=postgresql+psycopg://chat_template:change-me@localhost:5001/cdp_chat
+   APP_DATABASE_URL=postgresql+psycopg://app:change-me@localhost:5001/cdp_chat
+   JWT_JWKS_URI=http://localhost:8014/.well-known/jwks.json
+   JWT_AUDIENCE=chat
+   USER_SERVICE_BASE_URL=http://localhost:8018
    ```
 
-   Start Postgres, then apply migrations:
+3. Apply migrations (audit SQL from `templates/sql/audit` in the monorepo, or baked into the image):
 
    ```bash
    uv run alembic upgrade head
    ```
 
-   Requires audit SQL from `templates/sql/audit` (monorepo) or `ghcr.io/neosofia/sql-template:v0.6.0+` in production images.
-
-3. Run the test suite:
+4. Run tests:
 
    ```bash
    uv run --dev -m pytest -q
    ```
 
-4. Start the service locally:
+5. Start the service (default port **8001**):
 
    ```bash
    uv run --dev -m gunicorn -c src/gunicorn.py src.app:app
-   ```
-
-5. Check health (default service port **8001** per CDP spec 001 → 8000 + 1; override with `PORT` in `.env`):
-
-   ```bash
    curl http://localhost:8001/health
    ```
 
-   In the CDP `docker-compose.dev.yml` stack, this service listens on host port **8001** and Postgres on **5001** (`cdp_chat`).
+6. Local JWT for protected routes:
 
-6. Generate a local JWT to test secure API endpoints:
-
-   You will need a valid RS256 token matching the local application's keys to access protected endpoints. Run our utility script to generate an RSA Keypair and Token automatically:
-   
    ```bash
    uv run scripts/gen_dev_jwt.py --type Patient --sub p1
    ```
-   
-   The script will output the exact `JWT_PUBLIC_KEY` variable you need to place in your `.env` to start the server properly, along with the Bearer token for your HTTP requests.
 
-## Docker Build & Run
+Optional settings (inference, prompts, sender taxonomy, rate limits): see commented keys in `.env.example`. Active enum labels: `GET /meta/enums`.
 
-In this monorepo, build from the repository root:
+## Docker build and run
 
-```bash
-docker build -f templates/python/service/Dockerfile --target runtime -t python-template-dev .
-```
-
-To run the container locally, mount the port and explicitly set `ENV=development` to disable the forced HTTPS redirects from Talisman:
+From this repository:
 
 ```bash
-docker run -d --rm -p 8001:8001 -e ENV=development --env-file .env --name chat-dev chat-dev
+docker build --target runtime -t chat:local .
+docker run -d --rm -p 8001:8001 -e ENV=development --env-file .env --name chat-dev chat:local
 ```
 
-Before using this outside this monorepo, replace the local `authorization-in-the-middle` source override in `pyproject.toml` with an immutable published artifact.
+Run migrations before or via `preDeployCommand` (see `railway.toml`).
 
 ## Public cloud deployment
 
-Shared JWT, JWKS, CORS, healthcheck, and PaaS networking guidance:
+Shared JWT, JWKS, CORS, healthcheck, and PaaS guidance:
 
 **→ [infrastructure/public-cloud/OPERATIONS.md](https://github.com/Neosofia/infrastructure/blob/main/public-cloud/OPERATIONS.md)**
 
-For Railway IaC, start from `railway.toml` in this template directory. It provisions Postgres and runs Alembic via `preDeployCommand`.
+**Service-specific:**
 
-**Template-specific notes:**
+- `JWT_AUDIENCE` must include **`chat`**.
+- `JWT_JWKS_URI` → authentication service (for example `http://authentication:8014/.well-known/jwks.json`).
+- `USER_SERVICE_BASE_URL` required for cross-user authorization.
+- AI assistant: `INFERENCE_*` env vars; private prompts via `AGENT_*_FILE` (see [NOTICE](NOTICE)).
 
-- **Local JWKS:** `JWT_JWKS_URI=http://identity:8014/.well-known/jwks.json` (adjust host and port to your identity provider).
-- **Cloud audience:** `JWT_AUDIENCE=python-template`; configure your token issuer to include this audience.
-- **Healthcheck:** forked services should exempt `/health` from Talisman HTTPS redirect (see infrastructure guide).
-- **CORS preflight cache:** OPTIONS responses include `Access-Control-Max-Age: 86400` (24 h; Chrome caps at 2 h) so browsers cache cross-origin preflights.
+## Test matrix
 
-## Test Matrix
-
-- `tests/unit/` tests pure business logic, helpers, and pure functions without I/O or routing.
-- `tests/integration/` exercises the Flask routing, schema validation, and real un-mocked requests. Validates OpenAPI contract and response shapes.
-- `tests/integration/test_container.py` runs a real Docker container using `testcontainers` to ensure the built image responds successfully to health queries.
-- `tests/benchmark.py` stress tests concurrency, AuthN bottlenecks, and rate limiting natively.
-
-## High-Throughput Benchmarking
-
-You can profile API boundaries via `tests/benchmark.py`. This script spins up concurrent asynchronous clients to hammer the local application endpoint.
-
-When benchmarking container capacity locally via Docker:
-1. **Disable the Docker Log Driver**: Docker's default `json-file` log driver will become IO-bound at ~500 RPS as it streams massive amounts of 200 OK logs to your local hard drive. Pass `--log-driver none` to the `docker run` command to bypass this constraint for load testing.
-2. **Tune Rate Limits**: By default, `DOCUMENT_READ_RATE_LIMIT` strictly throttles to `60 per minute`. To test real server throughput, inject `-e DOCUMENT_READ_RATE_LIMIT="10000 per second"` to open the floodgates.
-3. **Set Workers**: Set `-e WEB_CONCURRENCY=X` matching CPU capacity. For example, `WEB_CONCURRENCY=16` handles 500+ sustained RPS with ~30ms latencies natively.
+- `tests/unit/` — business logic and routes with isolated patches.
+- `tests/integration/` — Flask client, OpenAPI contract, response shapes.
+- `tests/integration/test_container.py` — built image health (slow; needs Docker).

@@ -1,50 +1,57 @@
 # Changelog
 
-What changed for people who use or depend on this service (operators, integrators, patient and clinician apps — not deploy runbooks). Configuration and verification: [INSTALLATION_PLAN.md](INSTALLATION_PLAN.md).
+What changed for patient and clinician chat experiences. Deploy steps and verification: [INSTALLATION_PLAN.md](INSTALLATION_PLAN.md).
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.4.0] - 2026-06-10
+
+### Added
+
+- Conversations, messages, and assistant completions are scoped to a **user** — apps load and post chat under that user’s threads.
+- **Last activity** per user for roster and dashboard “last message” timestamps.
+
+### Changed
+
+- Clinicians authorized for a patient’s organization can access that patient’s conversations through the same user-scoped surface.
+
+### Removed
+
+- Care-episode identifiers are no longer stored on chat threads in this service (apps may still attach episode context when opening a conversation).
 
 ## [0.3.0] - 2026-06-10
 
 ### Added
 
-- `GET /meta/enums` exposes chat enum labels for UI clients.
-- Message **channel** dimension on stored messages (migration `005`).
-
-### Changed
-
-- Cedar catalog reads use **`message:list`** (aligned with `@with_security` REST inference); removed `src/bootstrap/capabilities.py` and manual catalog entity wiring.
-- Pinned **`authorization-in-the-middle/v0.4.23`** (hyphenated catalog type inference fix).
-- OpenAPI contract updated for interactions, messages, and meta routes.
+- Human-readable labels for chat enums (sender types, channels) for UI dropdowns and display.
+- A **channel** on each stored message for multi-channel chat later.
 
 ## [0.2.2] - 2026-06-05
 
 ### Added
 
-- Patients and clinicians can open, list, and paginate **conversation threads** (`interactions`) scoped to a care episode.
-- `POST /api/v1/messages/completions` drafts care-assistant replies, continues an existing thread, or starts a new one when `session_start` is true.
-- When a clinician has sent a message in a thread, patient completions return `ai_disabled: true` and no assistant message so the care team owns the reply.
+- Patients and clinicians can open, list, and switch between **conversation threads**.
+- The care assistant can draft replies, continue a thread, or greet the patient when a **new conversation** starts.
+- When a clinician has joined a thread, the care assistant stays **paused** in that conversation so the care team owns the reply.
 
 ### Changed
 
-- Messages are stored against an interaction thread instead of care-episode columns on each row.
+- Messages belong to a conversation thread rather than being keyed only by care episode.
 
 ## [0.2.1] - 2026-06-04
 
 ### Added
 
-- `GET /health` includes the service **semver** (`version`) for operator probes and platform health dashboards.
+- Service version is exposed on the health check for platform monitoring.
 
 ## [0.2.0] - 2026-06-03
 
 ### Changed
 
-- Message APIs require a valid chat-audience JWT and Cedar policy evaluation in production; only `GET /health` stays public.
+- Message access requires a signed-in user authorized for chat; the health check remains public.
 
 ## [0.1.0] - 2026-06-03
 
 ### Added
 
-- Authoritative PHI-complete chat store with list and create message APIs, Cedar authorization, OpenAPI contract, and database migrations for messages.
+- Authoritative chat message store with list and create APIs and access control.

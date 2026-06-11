@@ -18,6 +18,5 @@ class ChatInteraction(Base, AuditColumnsMixin):
         primary_key=True,
         server_default=text("uuidv7()"),
     )
-    patient_uuid: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True)
-    care_episode_uuid: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    user_uuid: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True)
     context: Mapped[dict | None] = mapped_column(JSONB, nullable=True)

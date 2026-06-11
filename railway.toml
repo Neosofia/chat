@@ -10,10 +10,10 @@ PGPORT = "5432"
 PGDATABASE = "${{POSTGRES_DB}}"
 PGUSER = "${{POSTGRES_USER}}"
 PGPASSWORD = "${{POSTGRES_PASSWORD}}"
-POSTGRES_DB = "python_template"
-POSTGRES_USER = "template"
+POSTGRES_DB = "cdp_chat"
+POSTGRES_USER = "chat_template"
 POSTGRES_PASSWORD = "${{secret()}}"
 
-# Python template service migrations run once per deploy, not on every container start.
+# Migrations run once per deploy, not on every container start.
 [deploy]
 preDeployCommand = ["python -m alembic upgrade head"]

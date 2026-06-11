@@ -12,12 +12,17 @@ from src.bootstrap.logging_config import log_event, setup_logging
 from logenvelope.flask import register_logenvelope_extension
 from src.routes import health
 from src.routes.interactions import init_interaction_routes
-from src.routes.messages import init_message_routes
 from src.routes.meta import init_meta_routes
 
 
 def _http_error_name(status_code: int) -> str:
-    return {400: "invalid_request", 404: "not_found", 405: "method_not_allowed", 413: "payload_too_large"}.get(status_code, "http_error")
+    return {
+        400: "invalid_request",
+        404: "not_found",
+        405: "method_not_allowed",
+        413: "payload_too_large",
+        503: "service_unavailable",
+    }.get(status_code, "http_error")
 
 
 def create_app(config: dict[str, Any] | None = None) -> Flask:
@@ -56,7 +61,6 @@ def create_app(config: dict[str, Any] | None = None) -> Flask:
     evaluator = CedarEvaluator(policy_source=policy_source)
 
     app.register_blueprint(health.bp)
-    init_message_routes(app, evaluator)
     init_interaction_routes(app, evaluator)
     init_meta_routes(app)
 

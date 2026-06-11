@@ -1,8 +1,8 @@
 # Chat Service
 
-Authoritative PHI-complete store for patient-facing chat. Channel adapters for app, web, and SMS share one place to record and read conversation history while it still contains identifiable patient content, before deidentification, analysis, or clinician review happen elsewhere.
+Authoritative store for user-scoped chat. Channel adapters for app, web, and SMS share one place to record and read conversation history while it still contains identifiable content, before deidentification, analysis, or downstream review happen elsewhere.
 
-Patient and clinician apps call this service when someone sends a message, opens a thread, or needs the care assistant to draft a reply. SMS and other channel adapters call it on the same path so every channel sees one timeline. The clinician app reads stored transcripts during escalation and takeover. The care episode service owns episode lifecycle and clinical context; this service only holds the conversations linked to that context. When a conversation ends, the deidentification pipeline is told to fetch the full thread. Authentication establishes identity for callers; channel delivery, push, risk scoring beyond the inline assistant, and long-term clean analytics live in their own services.
+Clients call this service when someone sends a message, opens a thread, or needs the AI assistant to draft a reply. SMS and other channel adapters use the same API so every channel sees one timeline. Authorized callers read stored transcripts during escalation and human takeover. Upstream services own episode or domain context; this service only holds the conversations linked to that context. When a conversation ends, the deidentification pipeline is told to fetch the full thread. Authentication establishes identity for callers; channel delivery, push, risk scoring beyond the inline assistant, and long-term clean analytics live in their own services.
 
 ## Resources
 
@@ -12,7 +12,7 @@ For testers, developers, and system administrators, [OPERATIONS.md](OPERATIONS.m
 
 ### Changelog
 
-For operators, integrators, and product owners, [CHANGELOG.md](CHANGELOG.md) records user-visible changes per release ([Keep a Changelog](https://keepachangelog.com/)).
+For product owners and release readers, [CHANGELOG.md](CHANGELOG.md) records user-visible chat changes per release ([Keep a Changelog](https://keepachangelog.com/)).
 
 ### API Contract
 
@@ -21,6 +21,10 @@ For API consumers, integration testers, and frontend developers, [openapi.json](
 ### Security Policy
 
 For security reviewers, on-call engineers, and contributors, [SECURITY.md](SECURITY.md) documents the threat model, authz boundaries, and logging rules for this service.
+
+### License
+
+AGPL-3.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE). Deploy-time AI assistant prompts are treated as operator configuration; see NOTICE.
 
 ### Feature Specification
 
