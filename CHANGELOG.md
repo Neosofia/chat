@@ -4,6 +4,12 @@ What changed for patient and clinician chat experiences. Deploy steps and verifi
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.1] - 2026-06-14
+
+### Fixed
+
+- Clinician **interaction** and **message** list routes now pass `userUuid` and `tenantId` on `ChatCatalog` Cedar entities (route inference omits attrs on nested `/messages` paths). Restores clinician transcript views after SDK v0.7.x adoption.
+
 ## [0.6.0] - 2026-06-14
 
 ### Changed

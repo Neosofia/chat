@@ -4,7 +4,7 @@ from authorization_in_the_middle.security import with_security
 from flask import Blueprint, Response, jsonify, request
 from werkzeug.exceptions import BadRequest
 
-from src.authorization.entities import CHAT_CATALOG_ID, is_care_episode_service_token
+from src.authorization.entities import CHAT_CATALOG_ID, is_care_episode_service_token, _user_scoped_catalog_attrs
 from src.bootstrap.config import settings
 from src.bootstrap.request_telemetry import log_request_handled
 from src.db.engine import SessionLocal
@@ -22,6 +22,7 @@ def _with_chat_security(action: str, *, rate_limit: str):
         rate_limit=rate_limit,
         resource_type="ChatCatalog",
         catalog_id=CHAT_CATALOG_ID,
+        catalog_attrs=lambda: _user_scoped_catalog_attrs(),
     )
 
 

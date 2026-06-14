@@ -26,6 +26,25 @@ def _auth_headers(rsa_keypair) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+def _clinician_headers(rsa_keypair, sub: str = OTHER) -> dict[str, str]:
+    token = jwt.encode(
+        {
+            "sub": sub,
+            "aud": "chat",
+            "exp": 9999999999,
+            "iat": 1,
+            "neosofia:actors": ["clinician"],
+            "neosofia:tenant_uuid": TENANT,
+        },
+        rsa_keypair["private"],
+        algorithm="RS256",
+    )
+    return {
+        "Authorization": f"Bearer {token}",
+        "X-Active-Actor": "clinician",
+    }
+
+
 def _care_episode_service_headers(rsa_keypair) -> dict[str, str]:
     token = jwt.encode(
         {
@@ -72,6 +91,33 @@ def test_get_interactions(mock_list, client, rsa_keypair):
         base_url="https://localhost",
     )
     assert response.status_code == 200
+
+
+@patch("src.authorization.entities._tenant_for", return_value=TENANT)
+@patch("src.routes.interactions.list_interactions")
+def test_clinician_can_list_other_patient_interactions(mock_list, _mock_tenant, client, rsa_keypair):
+    mock_list.return_value = [{"chat_interaction_uuid": "00000000-0000-7000-8000-000000000003"}]
+    response = client.get(
+        f"/api/v1/users/{OTHER}/interactions",
+        headers=_clinician_headers(rsa_keypair),
+        base_url="https://localhost",
+    )
+    assert response.status_code == 200
+
+
+@patch("src.authorization.entities._tenant_for", return_value=TENANT)
+@patch("src.routes.interactions.list_messages")
+@patch("src.routes.interactions.require_interaction_for_user")
+def test_clinician_can_list_other_patient_messages(mock_require, mock_list, _mock_tenant, client, rsa_keypair):
+    mock_require.return_value = object()
+    mock_list.return_value = [{"message_uuid": "00000000-0000-7000-8000-000000000010"}]
+    response = client.get(
+        f"/api/v1/users/{OTHER}/interactions/00000000-0000-7000-8000-000000000003/messages",
+        headers=_clinician_headers(rsa_keypair),
+        base_url="https://localhost",
+    )
+    assert response.status_code == 200
+    assert len(response.get_json()["items"]) == 1
 
 
 def test_post_interaction_rejects_other_patient(client, rsa_keypair):
