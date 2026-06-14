@@ -6,11 +6,8 @@ from typing import Any
 
 from authorization_in_the_middle import request_scoped_uuid
 from authorization_in_the_middle.entities import build_entity_payload
-from authorization_in_the_middle.flask_identity import jwt_claim_principal_attributes
+from authorization_in_the_middle.flask_identity import jwt_claim_principal_attributes, resolve_jwt_principal
 from flask import g, request
-from werkzeug.exceptions import BadRequest
-
-from src.bootstrap.config import settings
 
 NAMESPACE = "chat"
 CHAT_CATALOG_ID = "chat-catalog"
@@ -21,29 +18,8 @@ def _claims() -> dict[str, Any]:
     return getattr(g, "jwt_claims", {}) or {}
 
 
-def _jwt_claim(name: str) -> str:
-    return f"{settings.jwt_claim_namespace}:{name}"
-
-
-def build_service_principal_entity(service_slug: str, claims: dict[str, Any]) -> dict[str, Any]:
-    return build_entity_payload(
-        f"{NAMESPACE}::Service",
-        service_slug,
-        {
-            "serviceSlug": service_slug,
-            "tokenType": str(claims.get(_jwt_claim("token_type")) or claims.get("token_type") or ""),
-        },
-    )
-
-
 def resolve_principal() -> dict[str, Any]:
-    claims = _claims()
-    if not claims:
-        raise BadRequest("No JWT claims available on request context")
-    sub, ptype, attributes = jwt_claim_principal_attributes(claims, default_type="User")
-    if attributes.get("token_type") == "service":
-        return build_service_principal_entity(sub, claims)
-    return build_entity_payload(f"{NAMESPACE}::{ptype}", sub, attributes)
+    return resolve_jwt_principal(NAMESPACE, require_claims=True)
 
 
 def is_care_episode_service_token() -> bool:

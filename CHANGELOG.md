@@ -4,6 +4,12 @@ What changed for patient and clinician chat experiences. Deploy steps and verifi
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.0] - 2026-06-14
+
+### Changed
+
+- Pinned **`authorization-in-the-middle/v0.7.1`** — principals via shared `resolve_jwt_principal`; removed duplicate service-principal builder.
+
 ## [0.5.0] - 2026-06-11
 
 ### Changed

@@ -1,5 +1,6 @@
 // FR-007 — patient self-scope; clinicians tenant-scoped via stored interaction context.
 
+// Allow patients to list and create chat interactions and messages for their own catalog scope.
 permit (
     principal is chat::User,
     action in [
@@ -16,6 +17,7 @@ permit (
     principal.uuid == resource.userUuid
 };
 
+// Allow clinicians to list and create chat interactions and messages within their tenant.
 permit (
     principal is chat::User,
     action in [
@@ -32,7 +34,7 @@ permit (
     principal.tenantId != ""
 };
 
-// Care Episode — context-bearing interaction create on behalf of a patient
+// Allow the care-episode service to create patient-scoped interactions on behalf of enrolled patients.
 permit (
     principal is chat::Service,
     action == Action::"interaction:create",

@@ -2,6 +2,21 @@
 
 Per-version deploy steps for operators. User-visible changes: [CHANGELOG.md](CHANGELOG.md).
 
+## chat v0.6.0
+
+**Image:** `ghcr.io/neosofia/chat:v0.6.0` (tag `chat/v0.6.0`)
+
+**Deploy:**
+
+1. Rebuild and deploy **chat v0.6.0** (no config changes; SDK **`authorization-in-the-middle/v0.7.1`** only).
+
+**Verify:**
+
+- `GET /health` → `"version": "0.6.0"`.
+- Care Episode service token interaction create and patient/clinician chat flows unchanged from v0.5.0.
+
+---
+
 ## chat v0.5.0
 
 **Image:** `ghcr.io/neosofia/chat:v0.5.0` (tag `chat/v0.5.0`)
