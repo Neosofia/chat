@@ -2,6 +2,21 @@
 
 Per-version deploy steps for operators. User-visible changes: [CHANGELOG.md](CHANGELOG.md).
 
+## chat v0.6.2
+
+**Image:** `ghcr.io/neosofia/chat:v0.6.2` (tag `chat/v0.6.2`)
+
+**Deploy:**
+
+1. Rebuild and deploy **chat v0.6.2** (fixes clinician chat list authorization for patients with no stored chat context).
+
+**Verify:**
+
+- Clinician **Patients →** patient detail can open chat for an authorized patient with no prior messages.
+- `GET /health` → `"version": "0.6.2"`.
+
+---
+
 ## chat v0.6.1
 
 **Image:** `ghcr.io/neosofia/chat:v0.6.1` (tag `chat/v0.6.1`)

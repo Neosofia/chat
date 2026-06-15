@@ -4,6 +4,12 @@ What changed for patient and clinician chat experiences. Deploy steps and verifi
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.2] - 2026-06-15
+
+### Fixed
+
+- Clinicians can list an authorized patient's chat threads even before that patient has any stored chat history.
+
 ## [0.6.1] - 2026-06-14
 
 ### Fixed
