@@ -1,34 +1,40 @@
 from __future__ import annotations
 
+import uuid as _uuid
+
 from authorization_in_the_middle.security import with_security
 from flask import Blueprint, Response, jsonify, request
 from werkzeug.exceptions import BadRequest
 
-from src.authorization.entities import CHAT_CATALOG_ID, is_care_episode_service_token, _user_scoped_catalog_attrs
+from src.authorization.entities import is_care_episode_service_token
 from src.bootstrap.config import settings
 from src.bootstrap.request_telemetry import log_request_handled
 from src.db.engine import SessionLocal
 from src.services.completion_service import complete_user_turn, start_chat_session
 from src.services.context_service import normalize_interaction_context
 from src.services.interaction_service import create_interaction, list_interactions, require_interaction_for_user
-from src.services.message_service import create_message, list_last_message_times, list_messages
+from src.services.message_service import (
+    create_message,
+    list_last_message_times,
+    list_messages,
+    list_tenant_last_message_times,
+)
 
 bp = Blueprint("user_interactions", __name__, url_prefix="/api/v1/users")
+tenant_bp = Blueprint("tenant_chat", __name__, url_prefix="/api/v1/tenants")
 
 
-def _with_chat_security(action: str, *, rate_limit: str):
-    return with_security(
-        action=action,
-        rate_limit=rate_limit,
-        resource_type="ChatCatalog",
-        catalog_id=CHAT_CATALOG_ID,
-        catalog_attrs=lambda: _user_scoped_catalog_attrs(),
-    )
+def _parse_tenant_uuid(tenant_uuid: str) -> str | None:
+    try:
+        return str(_uuid.UUID(str(tenant_uuid)))
+    except ValueError:
+        return None
 
 
 def init_interaction_routes(app, cedar_evaluator):
     app.extensions["cedar_evaluator"] = cedar_evaluator
     app.register_blueprint(bp)
+    app.register_blueprint(tenant_bp)
 
 
 def _interaction_context_from_payload(payload: dict):
@@ -42,8 +48,28 @@ def _interaction_context_from_payload(payload: dict):
     return context
 
 
+@tenant_bp.get("/<tenant_uuid>/last-activity")
+@with_security(
+    action='Action::"message:list"',
+    rate_limit=settings.message_read_rate_limit,
+    resource_type="InteractionCatalog",
+)
+def get_tenant_last_activity(tenant_uuid: str) -> Response:
+    parsed_tenant = _parse_tenant_uuid(tenant_uuid)
+    if parsed_tenant is None:
+        return jsonify({"error": "invalid_request", "message": "tenant_uuid must be a UUID"}), 400
+    with SessionLocal() as db:
+        items = list_tenant_last_message_times(db, parsed_tenant)
+    log_request_handled("tenant_message_last_activity", 200)
+    return jsonify({"tenant_uuid": parsed_tenant, "items": items})
+
+
 @bp.get("/<user_uuid>/last-activity")
-@_with_chat_security(action='Action::"message:list"', rate_limit=settings.message_read_rate_limit)
+@with_security(
+    action='Action::"message:list"',
+    rate_limit=settings.message_read_rate_limit,
+    resource_type="InteractionCatalog",
+)
 def get_last_activity(user_uuid: str) -> Response:
     with SessionLocal() as db:
         item = list_last_message_times(db, [{"user_uuid": user_uuid}])[0]
@@ -52,7 +78,7 @@ def get_last_activity(user_uuid: str) -> Response:
 
 
 @bp.get("/<user_uuid>/interactions")
-@_with_chat_security(action='Action::"interaction:list"', rate_limit=settings.message_read_rate_limit)
+@with_security(rate_limit=settings.message_read_rate_limit)
 def get_interactions(user_uuid: str) -> Response:
     with SessionLocal() as db:
         response = jsonify({"items": list_interactions(db, user_uuid)})
@@ -61,7 +87,7 @@ def get_interactions(user_uuid: str) -> Response:
 
 
 @bp.post("/<user_uuid>/interactions")
-@_with_chat_security(action='Action::"interaction:create"', rate_limit=settings.message_write_rate_limit)
+@with_security(rate_limit=settings.message_write_rate_limit)
 def post_interaction(user_uuid: str) -> Response:
     payload = request.get_json(silent=True) or {}
     with SessionLocal() as db:
@@ -75,7 +101,7 @@ def post_interaction(user_uuid: str) -> Response:
 
 
 @bp.get("/<user_uuid>/interactions/<chat_interaction_uuid>/messages")
-@_with_chat_security(action='Action::"message:list"', rate_limit=settings.message_read_rate_limit)
+@with_security(rate_limit=settings.message_read_rate_limit)
 def get_messages(user_uuid: str, chat_interaction_uuid: str) -> Response:
     limit = max(1, min(int(request.args.get("limit", "200")), 500))
     with SessionLocal() as db:
@@ -86,7 +112,7 @@ def get_messages(user_uuid: str, chat_interaction_uuid: str) -> Response:
 
 
 @bp.post("/<user_uuid>/interactions/<chat_interaction_uuid>/messages")
-@_with_chat_security(action='Action::"message:create"', rate_limit=settings.message_write_rate_limit)
+@with_security(rate_limit=settings.message_write_rate_limit)
 def post_message(user_uuid: str, chat_interaction_uuid: str) -> Response:
     payload = request.get_json(silent=True) or {}
     payload = {**payload, "chat_interaction_uuid": chat_interaction_uuid}
@@ -98,7 +124,10 @@ def post_message(user_uuid: str, chat_interaction_uuid: str) -> Response:
 
 
 @bp.post("/<user_uuid>/interactions/<chat_interaction_uuid>/completions")
-@_with_chat_security(action='Action::"message:create"', rate_limit=settings.message_write_rate_limit)
+@with_security(
+    action='Action::"message:create"',
+    rate_limit=settings.message_write_rate_limit,
+)
 def create_completion(user_uuid: str, chat_interaction_uuid: str) -> Response:
     payload = request.get_json(silent=True) or {}
     payload = {**payload, "chat_interaction_uuid": chat_interaction_uuid}

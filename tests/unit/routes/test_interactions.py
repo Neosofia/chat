@@ -61,6 +61,29 @@ def _care_episode_service_headers(rsa_keypair) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+@patch("src.routes.interactions.list_tenant_last_message_times")
+def test_get_tenant_last_activity(mock_list, client, rsa_keypair):
+    mock_list.return_value = [{"user_uuid": PATIENT, "last_message_at": "2026-06-05T12:00:00+00:00"}]
+    response = client.get(
+        f"/api/v1/tenants/{TENANT}/last-activity",
+        headers=_clinician_headers(rsa_keypair),
+        base_url="https://localhost",
+    )
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["tenant_uuid"] == TENANT
+    assert body["items"][0]["user_uuid"] == PATIENT
+
+
+def test_get_tenant_last_activity_rejects_invalid_tenant_uuid(client, rsa_keypair):
+    response = client.get(
+        "/api/v1/tenants/not-a-uuid/last-activity",
+        headers=_clinician_headers(rsa_keypair),
+        base_url="https://localhost",
+    )
+    assert response.status_code == 403
+
+
 @patch("src.routes.interactions.list_last_message_times")
 def test_get_last_activity(mock_list, client, rsa_keypair):
     mock_list.return_value = [{"user_uuid": PATIENT, "last_message_at": "2026-06-05T12:00:00+00:00"}]
@@ -141,7 +164,7 @@ def test_clinician_can_list_other_patient_without_chat_history(mock_list, client
 def test_post_interaction_rejects_other_patient(client, rsa_keypair):
     response = client.post(
         f"/api/v1/users/{OTHER}/interactions",
-        json={},
+        json={"context": {"tenant_uuid": TENANT}},
         headers=_auth_headers(rsa_keypair),
         base_url="https://localhost",
     )

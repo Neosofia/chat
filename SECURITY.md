@@ -46,7 +46,7 @@ Policy rules encode **self-scope** (principal uuid matches resource `userUuid`) 
 
 **Interaction create:** `context` is required on `POST …/interactions` and may be supplied only by a `care-episode` service JWT. Patient and clinician callers cannot attach `context`; empty or missing `context` is rejected before persistence.
 
-**Tenant resolution for `chat::ChatCatalog`:** (1) Care Episode create — `tenant_uuid` from request `context`; (2) patient self — principal `tenantId` from JWT; (3) clinician cross-user — `tenant_uuid` from stored interaction `context` (database read during authorization). Chat does not call the User service for tenant lookup.
+**Tenant resolution for interaction and message catalogs:** (1) Care Episode create — `tenant_uuid` from request `context`; (2) patient self — principal `tenantId` from JWT; (3) clinician cross-user — `tenant_uuid` from stored interaction `context` (database read during authorization). Chat does not call the User service for tenant lookup.
 
 ---
 

@@ -46,7 +46,12 @@ Chat normalizes and persists `context` on `chat_interactions.context` (JSONB). C
 
 ## Authorization & Tenant Boundary
 
-Cedar policies in `policies/policy.cedar` are evaluated in-process via `authorization-in-the-middle`. Entity payloads are built in `src/authorization/entities.py`. For `chat::ChatCatalog` resources, `resource.tenantId` is resolved in order:
+Cedar policies in `policies/policy.cedar` are evaluated in-process via `authorization-in-the-middle`. Entity payloads are built in `src/authorization/entities.py`. Catalog resources mirror REST layout:
+
+* **`chat::InteractionCatalog`** — `GET|POST …/users/{user_uuid}/interactions`, tenant/user last-activity aggregates
+* **`chat::MessageCatalog`** — `GET|POST …/interactions/{chat_interaction_uuid}/messages`
+
+For both catalog types, `resource.tenantId` is resolved in order:
 
 1. **Care Episode create** — `tenant_uuid` from the request `context` (same trust boundary as other episode fields).
 2. **Patient self-scope** — `tenantId` from the caller's JWT (`neosofia:tenant_uuid`).

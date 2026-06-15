@@ -7,8 +7,10 @@ from authorization_in_the_middle.entities import build_entity_payload, entity_ui
 pytestmark = pytest.mark.unit
 
 PATIENT = "00000000-0000-7000-8000-000000000001"
+INTERACTION = "00000000-0000-7000-8000-000000000003"
 TENANT = "00000000-0000-7000-8000-000000000010"
-CHAT_CATALOG = entity_uid("chat::ChatCatalog", "chat-catalog")
+MESSAGE_CATALOG = entity_uid("chat::MessageCatalog", INTERACTION)
+INTERACTION_CATALOG = entity_uid("chat::InteractionCatalog", PATIENT)
 
 
 @pytest.fixture
@@ -17,18 +19,22 @@ def cedar():
     return CedarEvaluator(policy_source=FilesystemPolicySetSource(root / "policies"))
 
 
-def _chat_catalog(**attrs):
-    return build_entity_payload("chat::ChatCatalog", "chat-catalog", attrs)
+def _message_catalog(**attrs):
+    return build_entity_payload("chat::MessageCatalog", INTERACTION, attrs)
+
+
+def _interaction_catalog(**attrs):
+    return build_entity_payload("chat::InteractionCatalog", PATIENT, attrs)
 
 
 def test_patient_own_messages(cedar):
     ok = cedar.is_authorized(
         entity_uid("chat::User", PATIENT),
         'Action::"message:list"',
-        CHAT_CATALOG,
+        MESSAGE_CATALOG,
         [
             build_entity_payload("chat::User", PATIENT, {"uuid": PATIENT, "actors": ["patient"]}),
-            _chat_catalog(userUuid=PATIENT),
+            _message_catalog(userUuid=PATIENT, interactionUuid=INTERACTION),
         ],
         {},
     )
@@ -39,46 +45,64 @@ def test_patient_not_other_messages(cedar):
     ok = cedar.is_authorized(
         entity_uid("chat::User", PATIENT),
         'Action::"message:list"',
-        CHAT_CATALOG,
+        MESSAGE_CATALOG,
         [
             build_entity_payload("chat::User", PATIENT, {"uuid": PATIENT, "actors": ["patient"]}),
-            _chat_catalog(userUuid="00000000-0000-7000-8000-000000000099"),
+            _message_catalog(userUuid="00000000-0000-7000-8000-000000000099", interactionUuid=INTERACTION),
         ],
         {},
     )
     assert ok is False
 
 
-def test_clinician_same_tenant(cedar):
+def test_clinician_same_tenant_interactions(cedar):
     ok = cedar.is_authorized(
         entity_uid("chat::User", "00000000-0000-7000-8000-000000000099"),
-        'Action::"message:create"',
-        CHAT_CATALOG,
+        'Action::"interaction:list"',
+        INTERACTION_CATALOG,
         [
             build_entity_payload(
                 "chat::User",
                 "00000000-0000-7000-8000-000000000099",
                 {"actors": ["clinician"], "tenantId": TENANT},
             ),
-            _chat_catalog(tenantId=TENANT),
+            _interaction_catalog(userUuid=PATIENT, tenantId=TENANT),
         ],
         {},
     )
     assert ok is True
 
 
-def test_clinician_other_tenant(cedar):
+def test_clinician_same_tenant_messages(cedar):
     ok = cedar.is_authorized(
         entity_uid("chat::User", "00000000-0000-7000-8000-000000000099"),
         'Action::"message:create"',
-        CHAT_CATALOG,
+        MESSAGE_CATALOG,
         [
             build_entity_payload(
                 "chat::User",
                 "00000000-0000-7000-8000-000000000099",
                 {"actors": ["clinician"], "tenantId": TENANT},
             ),
-            _chat_catalog(tenantId="00000000-0000-7000-8000-000000000011"),
+            _message_catalog(tenantId=TENANT, interactionUuid=INTERACTION),
+        ],
+        {},
+    )
+    assert ok is True
+
+
+def test_clinician_other_tenant_messages(cedar):
+    ok = cedar.is_authorized(
+        entity_uid("chat::User", "00000000-0000-7000-8000-000000000099"),
+        'Action::"message:create"',
+        MESSAGE_CATALOG,
+        [
+            build_entity_payload(
+                "chat::User",
+                "00000000-0000-7000-8000-000000000099",
+                {"actors": ["clinician"], "tenantId": TENANT},
+            ),
+            _message_catalog(tenantId="00000000-0000-7000-8000-000000000011", interactionUuid=INTERACTION),
         ],
         {},
     )
@@ -89,10 +113,24 @@ def test_patient_own_interactions(cedar):
     ok = cedar.is_authorized(
         entity_uid("chat::User", PATIENT),
         'Action::"interaction:list"',
-        CHAT_CATALOG,
+        INTERACTION_CATALOG,
         [
             build_entity_payload("chat::User", PATIENT, {"uuid": PATIENT, "actors": ["patient"]}),
-            _chat_catalog(userUuid=PATIENT),
+            _interaction_catalog(userUuid=PATIENT),
+        ],
+        {},
+    )
+    assert ok is True
+
+
+def test_patient_last_activity_on_interaction_catalog(cedar):
+    ok = cedar.is_authorized(
+        entity_uid("chat::User", PATIENT),
+        'Action::"message:list"',
+        INTERACTION_CATALOG,
+        [
+            build_entity_payload("chat::User", PATIENT, {"uuid": PATIENT, "actors": ["patient"]}),
+            _interaction_catalog(userUuid=PATIENT),
         ],
         {},
     )

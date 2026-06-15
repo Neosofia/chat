@@ -4,6 +4,19 @@ What changed for patient and clinician chat experiences. Deploy steps and verifi
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.4] - 2026-06-15
+
+### Changed
+
+- Cedar policies and route authorization now mirror REST layout: ``InteractionCatalog`` for user/tenant interaction routes, ``MessageCatalog`` for nested message routes. Interaction and message handlers use inferred ``@with_security`` (explicit action only for aggregate last-activity and completions).
+- Pinned **`authorization-in-the-middle/v0.7.5`** — fixes nested ``…/interactions/{id}/messages`` inference, catalog-scoped create authorization, and catalog resource UID alignment.
+
+## [0.6.3] - 2026-06-15
+
+### Added
+
+- **`GET /api/v1/tenants/{tenant_uuid}/last-activity`** — one query returns last message timestamps for every user with chat activity in the tenant (clinician roster hydration without per-patient round trips).
+
 ## [0.6.2] - 2026-06-15
 
 ### Fixed

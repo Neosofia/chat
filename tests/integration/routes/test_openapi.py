@@ -18,6 +18,7 @@ def test_openapi_spec_contains_core_paths():
     assert "/api/v1/users/{user_uuid}/interactions/{chat_interaction_uuid}/messages" in spec["paths"]
     assert "/api/v1/users/{user_uuid}/interactions/{chat_interaction_uuid}/completions" in spec["paths"]
     assert "/api/v1/users/{user_uuid}/last-activity" in spec["paths"]
+    assert "/api/v1/tenants/{tenant_uuid}/last-activity" in spec["paths"]
     assert spec["info"]["version"] == "0.5.0"
 
 

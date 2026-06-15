@@ -42,6 +42,47 @@
         }
       }
     },
+    "/api/v1/tenants/{tenant_uuid}/last-activity": {
+      "get": {
+        "operationId": "listTenantLastMessageActivity",
+        "summary": "Last message timestamps for all users with chat activity in a tenant",
+        "parameters": [
+          {
+            "name": "tenant_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Last message activity per user in the tenant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantLastActivityResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "503": {
+            "$ref": "#/components/responses/AuthorizationUnavailable"
+          }
+        }
+      }
+    },
     "/api/v1/users/{user_uuid}/last-activity": {
       "get": {
         "operationId": "getLastMessageActivity",
@@ -671,6 +712,26 @@
             "type": "string",
             "format": "date-time",
             "nullable": true
+          }
+        }
+      },
+      "TenantLastActivityResponse": {
+        "type": "object",
+        "required": [
+          "tenant_uuid",
+          "items"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "tenant_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LastActivityResult"
+            }
           }
         }
       },

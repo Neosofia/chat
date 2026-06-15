@@ -50,6 +50,31 @@ def list_messages(db, chat_interaction_uuid: str | None = None, limit: int = 200
     return [_to_dict(row) for row in rows]
 
 
+def list_tenant_last_message_times(db, tenant_uuid: str) -> list[dict]:
+    try:
+        tenant_id = str(uuid.UUID(str(tenant_uuid)))
+    except ValueError as exc:
+        raise BadRequest("tenant_uuid must be a UUID") from exc
+
+    rows = (
+        db.query(
+            ChatInteraction.user_uuid,
+            func.max(Message.changed_at),
+        )
+        .join(Message, Message.chat_interaction_uuid == ChatInteraction.chat_interaction_uuid)
+        .filter(ChatInteraction.context["tenant_uuid"].astext == tenant_id)
+        .group_by(ChatInteraction.user_uuid)
+        .all()
+    )
+    return [
+        {
+            "user_uuid": str(user_id),
+            "last_message_at": last_at.astimezone(timezone.utc).isoformat() if last_at else None,
+        }
+        for user_id, last_at in rows
+    ]
+
+
 def list_last_message_times(db, items: list[dict]) -> list[dict]:
     results: list[dict] = []
     for item in items:

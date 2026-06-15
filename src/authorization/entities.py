@@ -10,7 +10,7 @@ from authorization_in_the_middle.flask_identity import jwt_claim_principal_attri
 from flask import g, request
 
 NAMESPACE = "chat"
-CHAT_CATALOG_ID = "chat-catalog"
+INTERACTION_CATALOG_ID = "interaction-catalog"
 CARE_EPISODE_SERVICE_SLUG = "care-episode"
 
 
@@ -100,27 +100,41 @@ def _tenant_for(user_uuid: str) -> str:
         return principal_tenant
     if stored := _tenant_from_stored_interaction_context(user_uuid):
         return stored
-    # Patients without chat history have no stored context; clinicians still need
-    # resource.tenantId to match their session tenant for list/create permits.
     actors = principal_attrs.get("actors") or []
     if isinstance(actors, list) and "clinician" in actors and principal_tenant:
         return principal_tenant
     return ""
 
 
-def _user_scoped_catalog_attrs() -> dict[str, str]:
-    attrs: dict[str, str] = {}
-    if user_uuid := request_scoped_uuid("user_uuid"):
-        attrs["userUuid"] = user_uuid
-        if tenant := _tenant_for(user_uuid):
-            attrs["tenantId"] = tenant
+def _user_scoped_catalog_attrs(user_uuid: str) -> dict[str, str]:
+    attrs: dict[str, str] = {"userUuid": user_uuid}
+    if tenant := _tenant_for(user_uuid):
+        attrs["tenantId"] = tenant
     return attrs
 
 
-def build_chat_catalog_resource() -> dict[str, Any]:
-    """Cedar resource for interaction and message list/create under a user."""
-    return build_entity_payload(
-        f"{NAMESPACE}::ChatCatalog",
-        CHAT_CATALOG_ID,
-        _user_scoped_catalog_attrs(),
-    )
+def build_interaction_catalog_resource() -> dict[str, Any]:
+    """Catalog for ``GET|POST …/users/{user_uuid}/interactions`` and tenant aggregates."""
+    if tenant_uuid := request_scoped_uuid("tenant_uuid"):
+        return build_entity_payload(
+            f"{NAMESPACE}::InteractionCatalog",
+            tenant_uuid,
+            {"tenantId": tenant_uuid},
+        )
+    user_uuid = request_scoped_uuid("user_uuid")
+    catalog_id = user_uuid or INTERACTION_CATALOG_ID
+    attrs = _user_scoped_catalog_attrs(user_uuid) if user_uuid else {}
+    return build_entity_payload(f"{NAMESPACE}::InteractionCatalog", catalog_id, attrs)
+
+
+def build_message_catalog_resource() -> dict[str, Any]:
+    """Catalog for ``GET|POST …/interactions/{chat_interaction_uuid}/messages``."""
+    user_uuid = request_scoped_uuid("user_uuid")
+    interaction_uuid = request_scoped_uuid("chat_interaction_uuid")
+    catalog_id = interaction_uuid or INTERACTION_CATALOG_ID
+    attrs: dict[str, str] = {}
+    if interaction_uuid:
+        attrs["interactionUuid"] = interaction_uuid
+    if user_uuid:
+        attrs.update(_user_scoped_catalog_attrs(user_uuid))
+    return build_entity_payload(f"{NAMESPACE}::MessageCatalog", catalog_id, attrs)

@@ -4,12 +4,13 @@ import pytest
 from werkzeug.exceptions import BadRequest, ServiceUnavailable
 
 from src.bootstrap.config import settings
-from src.services.message_service import create_message, list_last_message_times, list_messages
+from src.services.message_service import create_message, list_last_message_times, list_messages, list_tenant_last_message_times
 
 pytestmark = pytest.mark.unit
 
 INTERACTION = "00000000-0000-7000-8000-000000000003"
 PATIENT = "00000000-0000-7000-8000-000000000001"
+TENANT = "00000000-0000-7000-8000-000000000010"
 
 
 @pytest.mark.parametrize(
@@ -58,6 +59,26 @@ def test_list_last_message_times_returns_null_when_no_messages():
 
     results = list_last_message_times(db, [{"user_uuid": PATIENT}])
     assert results == [{"user_uuid": PATIENT, "last_message_at": None}]
+
+
+def test_list_tenant_last_message_times_rejects_invalid_tenant():
+    with pytest.raises(BadRequest, match="tenant_uuid"):
+        list_tenant_last_message_times(object(), "not-a-uuid")
+
+
+def test_list_tenant_last_message_times_returns_grouped_rows():
+    from datetime import datetime, timezone
+    from unittest.mock import MagicMock
+    from uuid import UUID
+
+    last_at = datetime(2026, 6, 5, 12, 0, tzinfo=timezone.utc)
+    db = MagicMock()
+    db.query.return_value.join.return_value.filter.return_value.group_by.return_value.all.return_value = [
+        (UUID(PATIENT), last_at),
+    ]
+
+    results = list_tenant_last_message_times(db, TENANT)
+    assert results == [{"user_uuid": PATIENT, "last_message_at": last_at.isoformat()}]
 
 
 def test_list_messages_returns_ordered_rows():

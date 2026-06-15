@@ -139,15 +139,54 @@ def test_tenant_for_uses_trusted_care_episode_context_tenant(monkeypatch):
         assert entities._tenant_for(PATIENT) == TENANT
 
 
-def test_build_chat_catalog_resource_scopes_user_and_tenant(monkeypatch):
-    monkeypatch.setattr(entities, "request_scoped_uuid", lambda _name: PATIENT)
+def test_build_interaction_catalog_resource_scopes_tenant_from_path(monkeypatch):
+    monkeypatch.setattr(entities, "request_scoped_uuid", lambda name: TENANT if name == "tenant_uuid" else "")
+    app = Flask(__name__)
+    with app.test_request_context(f"/api/v1/tenants/{TENANT}/last-activity"):
+        resource = entities.build_interaction_catalog_resource()
+
+    assert resource["uid"]["__entity"]["type"] == "chat::InteractionCatalog"
+    assert resource["uid"]["__entity"]["id"] == TENANT
+    assert resource["attrs"]["tenantId"] == TENANT
+    assert "userUuid" not in resource["attrs"]
+
+
+def test_build_interaction_catalog_resource_scopes_user_and_tenant(monkeypatch):
+    monkeypatch.setattr(
+        entities,
+        "request_scoped_uuid",
+        lambda name: PATIENT if name == "user_uuid" else "",
+    )
     monkeypatch.setattr(entities, "_tenant_for", lambda _uuid: TENANT)
     app = Flask(__name__)
-    with app.test_request_context():
-        resource = entities.build_chat_catalog_resource()
+    with app.test_request_context(f"/api/v1/users/{PATIENT}/interactions"):
+        resource = entities.build_interaction_catalog_resource()
 
-    assert resource["uid"]["__entity"]["type"] == "chat::ChatCatalog"
-    assert resource["uid"]["__entity"]["id"] == entities.CHAT_CATALOG_ID
+    assert resource["uid"]["__entity"]["type"] == "chat::InteractionCatalog"
+    assert resource["uid"]["__entity"]["id"] == PATIENT
+    assert resource["attrs"]["userUuid"] == PATIENT
+    assert resource["attrs"]["tenantId"] == TENANT
+
+
+def test_build_message_catalog_resource_scopes_interaction_and_user(monkeypatch):
+    monkeypatch.setattr(
+        entities,
+        "request_scoped_uuid",
+        lambda name: {
+            "user_uuid": PATIENT,
+            "chat_interaction_uuid": INTERACTION,
+        }.get(name, ""),
+    )
+    monkeypatch.setattr(entities, "_tenant_for", lambda _uuid: TENANT)
+    app = Flask(__name__)
+    with app.test_request_context(
+        f"/api/v1/users/{PATIENT}/interactions/{INTERACTION}/messages",
+    ):
+        resource = entities.build_message_catalog_resource()
+
+    assert resource["uid"]["__entity"]["type"] == "chat::MessageCatalog"
+    assert resource["uid"]["__entity"]["id"] == INTERACTION
+    assert resource["attrs"]["interactionUuid"] == INTERACTION
     assert resource["attrs"]["userUuid"] == PATIENT
     assert resource["attrs"]["tenantId"] == TENANT
 

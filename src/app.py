@@ -1,11 +1,13 @@
+from pathlib import Path
 from typing import Any
+
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from authentication_in_the_middle.actors import configure_tier1_actor_classes
-from authorization_in_the_middle import CedarEvaluator, FilesystemPolicySetSource
+from authorization_in_the_middle import CedarEvaluator, FilesystemPolicySetSource, bind_openapi_spec
 from src.bootstrap.config import settings
 from src.bootstrap.extensions import limiter, talisman
 from src.bootstrap.logging_config import log_event, setup_logging
@@ -36,6 +38,8 @@ def create_app(config: dict[str, Any] | None = None) -> Flask:
     app.config.setdefault("JWT_AUDIENCE", settings.jwt_audience)
     app.config.setdefault("JWT_CLAIM_NAMESPACE", settings.jwt_claim_namespace)
     app.config.setdefault("SERVICE_NAME", settings.service_name)
+    app.config.setdefault("OPENAPI_SPEC_PATH", str(Path(__file__).resolve().parents[1] / "openapi.json"))
+    bind_openapi_spec(app)
     register_logenvelope_extension(app)
     if hasattr(settings, "jwt_jwks_uri"):
         app.config.setdefault("JWT_JWKS_URI", settings.jwt_jwks_uri)
