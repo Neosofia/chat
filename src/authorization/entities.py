@@ -93,9 +93,19 @@ def _tenant_for(user_uuid: str) -> str:
     if trusted_tenant := _trusted_care_episode_context_tenant():
         return trusted_tenant
     principal = resolve_principal()
-    if user_uuid == str(principal["attrs"].get("uuid", "")):
-        return str(principal["attrs"].get("tenantId") or "").strip()
-    return _tenant_from_stored_interaction_context(user_uuid)
+    principal_attrs = principal.get("attrs") or {}
+    principal_uuid = str(principal_attrs.get("uuid") or "")
+    principal_tenant = str(principal_attrs.get("tenantId") or "").strip()
+    if user_uuid == principal_uuid:
+        return principal_tenant
+    if stored := _tenant_from_stored_interaction_context(user_uuid):
+        return stored
+    # Patients without chat history have no stored context; clinicians still need
+    # resource.tenantId to match their session tenant for list/create permits.
+    actors = principal_attrs.get("actors") or []
+    if isinstance(actors, list) and "clinician" in actors and principal_tenant:
+        return principal_tenant
+    return ""
 
 
 def _user_scoped_catalog_attrs() -> dict[str, str]:

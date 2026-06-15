@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import jwt
 import pytest
@@ -118,6 +118,24 @@ def test_clinician_can_list_other_patient_messages(mock_require, mock_list, _moc
     )
     assert response.status_code == 200
     assert len(response.get_json()["items"]) == 1
+
+
+@patch("src.routes.interactions.list_interactions")
+def test_clinician_can_list_other_patient_without_chat_history(mock_list, client, rsa_keypair):
+    mock_list.return_value = []
+    db = MagicMock()
+    db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
+    session = MagicMock()
+    session.__enter__ = MagicMock(return_value=db)
+    session.__exit__ = MagicMock(return_value=False)
+    with patch("src.db.engine.SessionLocal", lambda: session):
+        response = client.get(
+            f"/api/v1/users/{OTHER}/interactions",
+            headers=_clinician_headers(rsa_keypair),
+            base_url="https://localhost",
+        )
+    assert response.status_code == 200
+    assert response.get_json()["items"] == []
 
 
 def test_post_interaction_rejects_other_patient(client, rsa_keypair):

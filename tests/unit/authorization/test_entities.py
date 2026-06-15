@@ -84,11 +84,34 @@ def test_tenant_for_reads_tenant_from_latest_interaction_for_list_routes(monkeyp
         assert entities._tenant_for(OTHER) == TENANT
 
 
-def test_tenant_for_returns_empty_when_no_stored_tenant(monkeypatch):
+def test_tenant_for_falls_back_to_clinician_session_tenant_without_stored_context(monkeypatch):
     monkeypatch.setattr(
         entities,
         "resolve_principal",
-        lambda: {"attrs": {"uuid": PATIENT, "tenantId": TENANT}},
+        lambda: {
+            "attrs": {
+                "uuid": PATIENT,
+                "tenantId": TENANT,
+                "actors": ["clinician"],
+            },
+        },
+    )
+    db = MagicMock()
+    db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
+    monkeypatch.setattr(
+        "src.db.engine.SessionLocal",
+        lambda: _session_local_mock(db),
+    )
+    app = Flask(__name__)
+    with app.test_request_context(f"/api/v1/users/{OTHER}/interactions"):
+        assert entities._tenant_for(OTHER) == TENANT
+
+
+def test_tenant_for_returns_empty_when_no_stored_tenant_and_not_clinician(monkeypatch):
+    monkeypatch.setattr(
+        entities,
+        "resolve_principal",
+        lambda: {"attrs": {"uuid": PATIENT, "tenantId": TENANT, "actors": ["patient"]}},
     )
     db = MagicMock()
     db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
