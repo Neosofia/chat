@@ -4,6 +4,12 @@ What changed for patient and clinician chat experiences. Deploy steps and verifi
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.7.1] - 2026-06-18
+
+### Fixed
+
+- Service errors and API failures are recorded in operational logs at default verbosity.
+
 ## [0.7.0] - 2026-06-18
 
 ### Changed
