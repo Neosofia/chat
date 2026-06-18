@@ -2,6 +2,25 @@
 
 Per-version deploy steps for operators. User-visible changes: [CHANGELOG.md](CHANGELOG.md).
 
+## chat v0.7.0
+
+**Image:** `ghcr.io/neosofia/chat:v0.7.0` (tag `chat/v0.7.0`)
+
+**Deploy:**
+
+1. Redeploy **chat v0.7.0** (no new migration).
+2. Redeploy **CDP UI 2026.06.21** or later in the same change window.
+
+**Verify:**
+
+- `GET /health` → `"version": "0.7.0"`.
+- Clinician and patient **Prior conversations** lists omit empty threads.
+- Existing threads with messages still open and paginate normally.
+
+**Evidence:** Health JSON version field; staging visual walkthrough step **09** / **11** green.
+
+---
+
 ## chat v0.6.2
 
 **Image:** `ghcr.io/neosofia/chat:v0.6.2` (tag `chat/v0.6.2`)

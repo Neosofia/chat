@@ -4,6 +4,12 @@ What changed for patient and clinician chat experiences. Deploy steps and verifi
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.7.0] - 2026-06-18
+
+### Changed
+
+- Prior conversations lists include only threads that already have at least one message, so empty drafts no longer appear alongside real chats.
+
 ## [0.6.4] - 2026-06-15
 
 ### Changed

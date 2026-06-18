@@ -29,6 +29,7 @@
 
    ```bash
    uv run --dev -m pytest -q
+   RUN_DOCKER_TESTS=1 uv run --dev -m pytest tests/integration/test_container.py -q
    ```
 
 5. Start the service (default port **8001**):
@@ -71,9 +72,3 @@ Shared JWT, JWKS, CORS, healthcheck, and PaaS guidance:
 - `JWT_JWKS_URI` → authentication service (for example `http://authentication:8014/.well-known/jwks.json`).
 - Interaction create accepts `context` only from **care-episode** service tokens; patient channels open interactions via the Care Episode proxy.
 - **Care assistant:** `INFERENCE_COMPLETIONS_URL`, `INFERENCE_API_KEY`, and `INFERENCE_MODEL` are **required** for patient-facing deployments. Completions fail closed (**503**) when inference is unavailable; private prompts via `AGENT_*_FILE` (see [NOTICE](NOTICE)).
-
-## Test matrix
-
-- `tests/unit/` — business logic and routes with isolated patches.
-- `tests/integration/` — Flask client, OpenAPI contract, response shapes.
-- `tests/integration/test_container.py` — built image health (slow; needs Docker).

@@ -80,7 +80,12 @@
           "503": {
             "$ref": "#/components/responses/AuthorizationUnavailable"
           }
-        }
+        },
+        "security": [
+          {
+            "BearerToken": []
+          }
+        ]
       }
     },
     "/api/v1/users/{user_uuid}/last-activity": {
@@ -121,7 +126,12 @@
           "503": {
             "$ref": "#/components/responses/AuthorizationUnavailable"
           }
-        }
+        },
+        "security": [
+          {
+            "BearerToken": []
+          }
+        ]
       }
     },
     "/api/v1/users/{user_uuid}/interactions": {
@@ -165,7 +175,12 @@
           "503": {
             "$ref": "#/components/responses/AuthorizationUnavailable"
           }
-        }
+        },
+        "security": [
+          {
+            "BearerToken": []
+          }
+        ]
       },
       "post": {
         "operationId": "createInteraction",
@@ -217,7 +232,12 @@
           "503": {
             "$ref": "#/components/responses/AuthorizationUnavailable"
           }
-        }
+        },
+        "security": [
+          {
+            "BearerToken": []
+          }
+        ]
       }
     },
     "/api/v1/users/{user_uuid}/interactions/{chat_interaction_uuid}/messages": {
@@ -281,7 +301,12 @@
           "503": {
             "$ref": "#/components/responses/AuthorizationUnavailable"
           }
-        }
+        },
+        "security": [
+          {
+            "BearerToken": []
+          }
+        ]
       },
       "post": {
         "operationId": "createMessage",
@@ -342,7 +367,12 @@
           "503": {
             "$ref": "#/components/responses/AuthorizationUnavailable"
           }
-        }
+        },
+        "security": [
+          {
+            "BearerToken": []
+          }
+        ]
       }
     },
     "/api/v1/users/{user_uuid}/interactions/{chat_interaction_uuid}/completions": {
@@ -406,7 +436,12 @@
           "503": {
             "$ref": "#/components/responses/ServiceUnavailable"
           }
-        }
+        },
+        "security": [
+          {
+            "BearerToken": []
+          }
+        ]
       }
     }
   },
@@ -574,7 +609,7 @@
             "properties": {
               "user_sender_type": {
                 "type": "string",
-                "description": "sender_type used when POST …/completions persists the user turn (COMPLETION_USER_SENDER_TYPE)."
+                "description": "sender_type used when POST \u2026/completions persists the user turn (COMPLETION_USER_SENDER_TYPE)."
               },
               "assistant_sender_type": {
                 "type": "string",
@@ -623,7 +658,7 @@
           },
           "sender_type": {
             "type": "string",
-            "description": "One of the labels in GET /meta/enums → MessageSenderType (runtime-configurable)."
+            "description": "One of the labels in GET /meta/enums \u2192 MessageSenderType (runtime-configurable)."
           },
           "sender_uuid": {
             "type": "string",
@@ -664,7 +699,7 @@
         "properties": {
           "sender_type": {
             "type": "string",
-            "description": "One of the labels in GET /meta/enums → MessageSenderType (runtime-configurable)."
+            "description": "One of the labels in GET /meta/enums \u2192 MessageSenderType (runtime-configurable)."
           },
           "content": {
             "type": "string"
@@ -886,6 +921,20 @@
         },
         "description": "Required authoritative episode context from Care Episode (max 8192 bytes serialized). Must include tenant_uuid for cross-user authorization."
       }
+    },
+    "securitySchemes": {
+      "BearerToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "RS256-signed platform JWT. Service callers obtain tokens via Authentication POST /api/token (client_credentials grant with audience=chat)."
+      }
     }
-  }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8019",
+      "description": "Local development"
+    }
+  ]
 }

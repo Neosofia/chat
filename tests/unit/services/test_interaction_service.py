@@ -105,6 +105,29 @@ def test_list_interactions_requires_user_uuid():
         list_interactions(object(), "")
 
 
+def test_list_interactions_skips_empty_threads():
+    db = MagicMock()
+    interaction = _interaction()
+    interaction.changed_at = datetime(2026, 6, 5, 10, 0, tzinfo=timezone.utc)
+    last_message_at = datetime(2026, 6, 5, 11, 0, tzinfo=timezone.utc)
+
+    list_query = MagicMock()
+    list_query.outerjoin.return_value.filter.return_value.group_by.return_value.order_by.return_value.all.return_value = [
+        (interaction, 0, None),
+        (interaction, 2, last_message_at),
+    ]
+
+    preview_query = MagicMock()
+    preview_query.filter.return_value.filter.return_value.order_by.return_value.first.return_value = (
+        "How is my pain?",
+    )
+    db.query.side_effect = [list_query, preview_query]
+
+    items = list_interactions(db, PATIENT)
+    assert len(items) == 1
+    assert items[0]["message_count"] == 2
+
+
 def test_list_interactions_returns_preview_for_threads_with_messages():
     db = MagicMock()
     interaction = _interaction()

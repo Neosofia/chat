@@ -74,9 +74,11 @@ def create_interaction(
     if not user_uuid:
         raise BadRequest("user_uuid is required")
 
+    user_id = uuid.UUID(str(user_uuid))
+    normalized = normalize_interaction_context(context)
     interaction = ChatInteraction(
-        user_uuid=uuid.UUID(str(user_uuid)),
-        context=normalize_interaction_context(context),
+        user_uuid=user_id,
+        context=normalized,
         changed_by_uuid=SYSTEM_ACTOR_UUID,
         changed_by_type=SERVICE_ACTOR_TYPE,
     )
@@ -107,11 +109,14 @@ def list_interactions(db, user_uuid: str) -> list[dict]:
 
     items: list[dict] = []
     for interaction, message_count, last_message_at in rows:
-        preview = _interaction_preview(db, interaction.chat_interaction_uuid) if message_count else None
+        count = int(message_count or 0)
+        if count == 0:
+            continue
+        preview = _interaction_preview(db, interaction.chat_interaction_uuid)
         items.append(
             _to_dict(
                 interaction,
-                message_count=int(message_count or 0),
+                message_count=count,
                 last_message_at=last_message_at,
                 preview=preview,
             )
